@@ -52,8 +52,10 @@ EOF
 
 echo "[e2e-server] .dev.vars written for E2E run"
 
-# Build (uses production build, no dep-opt issues)
-npm run build
+# Build with e2e mode: VITE_TEST_AUTH_ENABLED=true so the test-auth bypass
+# is included in this bundle (needed for Playwright auth injection).
+# Production builds use `npm run build` which omits the bypass entirely.
+npm run build:e2e
 
 # Miniflare (vite preview / @cloudflare/vite-plugin) reads secrets from
 # dist/server/.dev.vars. The vite build already copies .dev.vars there,
