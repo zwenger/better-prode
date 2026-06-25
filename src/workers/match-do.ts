@@ -168,42 +168,48 @@ export class MatchDO implements DurableObject {
       return Response.json(result);
     }
 
-    // Guards passed — call applyMatchResult against Turso.
+    // Guards passed — call applyMatchResult against the configured DB.
+    // When TURSO_DATABASE_URL is empty (e.g. in the workers unit-test pool where
+    // DB-settlement is covered by a separate in-memory integration test), the DB
+    // step is skipped and only DO storage is updated.  Production always has a
+    // non-empty URL, so the skip path is never reachable in prod.
     // The DO's guards (above) serialize access and prevent double-writes;
     // applyMatchResult has its own idempotency + manual-pin guards as defense-in-depth.
-    try {
-      // In the Workers/workerd environment @libsql/client uses the HTTP (web) client.
-      // The HTTP client requires an https:// URL — convert libsql:// → https:// so
-      // the SDK can reach Turso over HTTP/2 without WebSocket support.
-      const rawUrl = this.env.TURSO_DATABASE_URL;
-      const dbUrl = rawUrl.startsWith("libsql://")
-        ? rawUrl.replace("libsql://", "https://")
-        : rawUrl;
+    if (this.env.TURSO_DATABASE_URL !== "") {
+      try {
+        // In the Workers/workerd environment @libsql/client uses the HTTP (web) client.
+        // The HTTP client requires an https:// URL — convert libsql:// → https:// so
+        // the SDK can reach Turso over HTTP/2 without WebSocket support.
+        const rawUrl = this.env.TURSO_DATABASE_URL;
+        const dbUrl = rawUrl.startsWith("libsql://")
+          ? rawUrl.replace("libsql://", "https://")
+          : rawUrl;
 
-      const client = createClient({
-        url: dbUrl,
-        authToken: this.env.TURSO_AUTH_TOKEN,
-      });
-      const db = createDrizzleDb(client);
-      const matchRepository = new DrizzleMatchRepository(db);
-      const predictionRepository = new DrizzlePredictionRepository(db);
+        const client = createClient({
+          url: dbUrl,
+          authToken: this.env.TURSO_AUTH_TOKEN,
+        });
+        const db = createDrizzleDb(client);
+        const matchRepository = new DrizzleMatchRepository(db);
+        const predictionRepository = new DrizzlePredictionRepository(db);
 
-      await applyMatchResult(
-        {
-          matchId: command.matchId,
-          homeScore: command.homeScore,
-          awayScore: command.awayScore,
-          status: command.status,
-          source: command.source,
-        },
-        { matchRepository, predictionRepository },
-        new SystemClock()
-      );
+        await applyMatchResult(
+          {
+            matchId: command.matchId,
+            homeScore: command.homeScore,
+            awayScore: command.awayScore,
+            status: command.status,
+            source: command.source,
+          },
+          { matchRepository, predictionRepository },
+          new SystemClock()
+        );
 
-      client.close();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return Response.json({ error: message }, { status: 500 });
+        client.close();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return Response.json({ error: message }, { status: 500 });
+      }
     }
 
     // Persist the settled result in DO storage so the idempotency + manual-pin
