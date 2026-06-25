@@ -8,8 +8,11 @@
  * (https://github.com/cloudflare/workers-sdk/issues/11100). Using this file as
  * `main` is the working way to:
  *   - export the MatchDO Durable Object class (required by the MATCH_DO binding)
+ *   - mount Better Auth's handler on /api/auth/*  (sign-in, OAuth callback,
+ *     get-session, sign-out) — TanStack Start v1 has no API-file-route primitive
+ *     that mounts an arbitrary fetch handler at a path, so we do it here
  *   - intercept the test-only auth bypass endpoint in E2E builds
- * All real request handling is delegated to the official handler below.
+ * All other requests are delegated to the official TanStack handler below.
  */
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
@@ -25,13 +28,28 @@ const handleTestSession = TEST_AUTH_ENABLED
   : null;
 
 export default createServerEntry({
-  fetch(request) {
-    if (handleTestSession !== null) {
-      const url = new URL(request.url);
-      if (url.pathname === "/api/test/session" && request.method === "POST") {
-        return handleTestSession(request);
-      }
+  async fetch(request) {
+    const url = new URL(request.url);
+
+    // Better Auth owns all of /api/auth/* (sign-in/social, callback/google,
+    // get-session, sign-out, ...). Its handler is a standard fetch handler.
+    // Imported lazily so the auth module (DB client + Better Auth init) only
+    // loads when an auth request actually arrives — keeps unrelated routes
+    // (e.g. the home page) independent of auth/env availability.
+    if (url.pathname.startsWith("/api/auth/")) {
+      const { auth } = await import("./infra/auth/auth");
+      return auth.handler(request);
     }
+
+    // Test-only auth bypass (e2e builds only).
+    if (
+      handleTestSession !== null &&
+      url.pathname === "/api/test/session" &&
+      request.method === "POST"
+    ) {
+      return handleTestSession(request);
+    }
+
     return handler.fetch(request);
   },
 });
