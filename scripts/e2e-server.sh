@@ -4,10 +4,9 @@
 # writes .dev.vars for Miniflare env var injection, builds the app,
 # then starts the preview server (Miniflare/Workerd serving built output).
 #
-# Why preview instead of dev:
-# @cloudflare/vite-plugin SSR dep-optimization in dev mode fails to resolve
-# #tanstack-router-entry package import maps from @tanstack/start-server-core.
-# Preview uses the production build without dep-opt and is fully functional.
+# Why preview (production build) instead of the dev server:
+# E2E should exercise the exact artifact that ships. Preview serves the built
+# output via Miniflare/Workerd, the same runtime as production.
 #
 # Why turso dev instead of file:// URL:
 # @libsql/client in the Cloudflare Workers runtime uses the web client

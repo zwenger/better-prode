@@ -43,16 +43,11 @@ export default defineConfig({
     },
   ],
 
-  // Start the server before running tests.
-  // We use `vite preview` (serving the production build) instead of `vite dev`
-  // because @cloudflare/vite-plugin's SSR dep-optimization in dev mode fails on
-  // TanStack Start package import maps (#tanstack-router-entry etc.) — tracked
-  // as a known issue with rolldown + @tanstack/start-server-core package imports.
-  // Preview uses the already-built output without dep-opt and is fully functional.
-  //
-  // scripts/e2e-server.sh builds the app, writes E2E env vars to
-  // dist/server/.dev.vars (never the root .dev.vars), and starts vite preview
-  // on port 4173 so Miniflare picks up the E2E config.
+  // Start the server before running tests. E2E runs against the PRODUCTION build
+  // (vite preview / Miniflare), so we exercise the exact artifact that ships.
+  // scripts/e2e-server.sh seeds a local libSQL db (turso dev), runs the e2e
+  // build, writes E2E secrets to dist/server/.dev.vars (never the root
+  // .dev.vars), and serves preview on port 4173.
   webServer: {
     command: "bash scripts/e2e-server.sh",
     url: "http://localhost:4173",

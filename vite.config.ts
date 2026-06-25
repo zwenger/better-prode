@@ -9,14 +9,24 @@ import { cloudflare } from '@cloudflare/vite-plugin'
 // + test-auth interception) is src/server.ts, set as wrangler `main` — see that
 // file for why a custom main is required.
 //
-// NOTE: `vite dev` is currently broken upstream — @cloudflare/vite-plugin's
-// rolldown SSR dep-optimization fails to resolve TanStack's #tanstack-*-entry
-// subpath imports (https://github.com/cloudflare/workers-sdk/issues/11100).
-// The dev/test workflow uses `npm run build` + `npm run preview` instead, which
-// does not run that dep-opt pass and works correctly. Re-enable `vite dev` once
-// the upstream issue is fixed.
+// optimizeDeps.exclude — REQUIRED for `vite dev`. @tanstack/start-server-core
+// does `import('#tanstack-router-entry')` / `import('#tanstack-start-entry')`;
+// the dev dep-optimizer tries to pre-bundle that package and can't resolve those
+// subpath imports (tanstackStart() provides them at runtime, not in the package's
+// own imports map). Excluding it defers resolution to runtime where the alias is
+// present. (Project is pinned to Vite 7 — Vite 8's rolldown optimizer hits the
+// same import eagerly and is not fixed by this exclude.)
 export default defineConfig({
-  resolve: { tsconfigPaths: true },
+  optimizeDeps: {
+    exclude: ['@tanstack/start-server-core', '@tanstack/react-start'],
+  },
+  environments: {
+    ssr: {
+      optimizeDeps: {
+        exclude: ['@tanstack/start-server-core', '@tanstack/react-start'],
+      },
+    },
+  },
   plugins: [
     devtools(),
     cloudflare({ viteEnvironment: { name: 'ssr' } }),
