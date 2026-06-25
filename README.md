@@ -134,10 +134,22 @@ npm run dev
 
 #### 6. Deploy to Cloudflare
 
-Set production secrets before deploying:
+**Before deploying**, complete these steps in order:
+
+**6a. Run migrations against your production Turso database.**
+The `npm run deploy` script does NOT run migrations automatically.
+
+```bash
+TURSO_DATABASE_URL=libsql://<db-name>-<org>.turso.io \
+  TURSO_AUTH_TOKEN=<your-token> \
+  npm run db:migrate
+```
+
+**6b. Set all production secrets** via `wrangler secret put` (prompts for the value interactively):
 
 ```bash
 npx wrangler secret put BETTER_AUTH_SECRET
+npx wrangler secret put BETTER_AUTH_URL     # your deployed origin, e.g. https://better-prode.workers.dev
 npx wrangler secret put TURSO_DATABASE_URL
 npx wrangler secret put TURSO_AUTH_TOKEN
 npx wrangler secret put GOOGLE_CLIENT_ID
@@ -148,14 +160,18 @@ npx wrangler secret put VAPID_PRIVATE_KEY
 npx wrangler secret put VAPID_SUBJECT
 ```
 
-Then deploy:
+**6c. Add the production redirect URI in Google Cloud Console.**
+Go to [APIs & Credentials](https://console.cloud.google.com/apis/credentials), open your OAuth 2.0 Client, and add:
+```
+https://<your-worker>.workers.dev/api/auth/callback/google
+```
+
+**6d. Deploy:**
 
 ```bash
 npm run deploy
 # Runs: vite build && wrangler deploy
 ```
-
-Update your Google OAuth redirect URI to `https://<your-worker>.workers.dev/api/auth/callback/google`.
 
 ---
 
