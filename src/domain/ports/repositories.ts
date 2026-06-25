@@ -20,8 +20,8 @@ export type { MatchRecord, PredictionRecord };
  * MatchRepository port — read/write match records.
  */
 export interface MatchRepository {
-  getById(id: string): Promise<MatchRecord | null>;
-  updateResult(
+  getById: (id: string) => Promise<MatchRecord | null>;
+  updateResult: (
     id: string,
     update: Partial<
       Pick<
@@ -29,7 +29,7 @@ export interface MatchRepository {
         "homeScore" | "awayScore" | "resultSource" | "settledAt" | "status"
       >
     >
-  ): Promise<void>;
+  ) => Promise<void>;
 }
 
 /**
@@ -37,15 +37,15 @@ export interface MatchRepository {
  */
 export interface PredictionRepository {
   /** Get all predictions for a given match. */
-  listByMatch(matchId: string): Promise<PredictionRecord[]>;
+  listByMatch: (matchId: string) => Promise<PredictionRecord[]>;
   /** Update the stored points for a specific prediction after settlement. */
-  updatePoints(predictionId: string, points: number): Promise<void>;
+  updatePoints: (predictionId: string, points: number) => Promise<void>;
   /**
    * Insert or update a prediction for (userId, matchId).
    * Throws `DUPLICATE_PREDICTION` domain error if the DB UNIQUE constraint
    * fires in an unexpected context (should not happen with upsert).
    */
-  upsert(prediction: Omit<PredictionRecord, "id" | "points"> & { id?: string }): Promise<PredictionRecord>;
+  upsert: (prediction: Omit<PredictionRecord, "id" | "points"> & { id?: string }) => Promise<PredictionRecord>;
 }
 
 // Re-export types used by adapters

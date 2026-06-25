@@ -1,3 +1,5 @@
+/// <reference types="@cloudflare/vitest-pool-workers/types" />
+
 /**
  * TDD: MatchDO Durable Object tests (task 1.9 RED → 1.10 GREEN)
  *
@@ -15,6 +17,11 @@
 
 import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
+import type { Env } from "./match-do";
+
+// Cast env to the locally-defined Env type so TypeScript knows about MATCH_DO.
+// The workers vitest pool binds MATCH_DO per wrangler.jsonc at runtime.
+const testEnv = env as unknown as Env;
 
 describe("MatchDO — single-flight settlement", () => {
   beforeEach(async () => {
@@ -22,8 +29,8 @@ describe("MatchDO — single-flight settlement", () => {
   });
 
   it("single fetch call returns 200 and settles the match", async () => {
-    const id = env.MATCH_DO.idFromName("match-single-flight-test");
-    const stub = env.MATCH_DO.get(id);
+    const id = testEnv.MATCH_DO.idFromName("match-single-flight-test");
+    const stub = testEnv.MATCH_DO.get(id);
 
     const response = await stub.fetch(
       "http://do/settle",
@@ -41,15 +48,15 @@ describe("MatchDO — single-flight settlement", () => {
     );
 
     expect(response.status).toBe(200);
-    const body = await response.json() as { settled: boolean; settleCount: number };
+    const body = await response.json<{ settled: boolean; settleCount: number }>();
     expect(body.settled).toBe(true);
     expect(body.settleCount).toBe(1);
   });
 
   it("100 concurrent fetch() calls → exactly 1 settlement (single-flight)", async () => {
     const matchId = "match-concurrent-test";
-    const id = env.MATCH_DO.idFromName(matchId);
-    const stub = env.MATCH_DO.get(id);
+    const id = testEnv.MATCH_DO.idFromName(matchId);
+    const stub = testEnv.MATCH_DO.get(id);
 
     const payload = JSON.stringify({
       matchId,
@@ -76,8 +83,9 @@ describe("MatchDO — single-flight settlement", () => {
     }
 
     // The DO should report exactly 1 settlement happened (idempotent from #2 onward)
+    type SettleBody = { settled: boolean; settleCount: number };
     const bodies = await Promise.all(
-      responses.map((r) => r.json() as Promise<{ settled: boolean; settleCount: number }>)
+      responses.map((r: Response) => r.json<SettleBody>())
     );
     const maxSettleCount = Math.max(...bodies.map((b) => b.settleCount));
     expect(maxSettleCount).toBe(1);
@@ -85,8 +93,8 @@ describe("MatchDO — single-flight settlement", () => {
 
   it("idempotent — same args on repeated calls → no additional settlement", async () => {
     const matchId = "match-idempotent-test";
-    const id = env.MATCH_DO.idFromName(matchId);
-    const stub = env.MATCH_DO.get(id);
+    const id = testEnv.MATCH_DO.idFromName(matchId);
+    const stub = testEnv.MATCH_DO.get(id);
 
     const payload = {
       matchId,
@@ -103,7 +111,7 @@ describe("MatchDO — single-flight settlement", () => {
       body: JSON.stringify(payload),
     });
     expect(r1.status).toBe(200);
-    const b1 = await r1.json() as { settled: boolean; settleCount: number };
+    const b1 = await r1.json<{ settled: boolean; settleCount: number }>();
     expect(b1.settleCount).toBe(1);
 
     // Second call with same payload — no-op
@@ -113,15 +121,15 @@ describe("MatchDO — single-flight settlement", () => {
       body: JSON.stringify(payload),
     });
     expect(r2.status).toBe(200);
-    const b2 = await r2.json() as { settled: boolean; settleCount: number };
+    const b2 = await r2.json<{ settled: boolean; settleCount: number }>();
     // Still 1 — did not re-settle
     expect(b2.settleCount).toBe(1);
   });
 
   it("manual pin blocks auto from overwriting", async () => {
     const matchId = "match-pin-test";
-    const id = env.MATCH_DO.idFromName(matchId);
-    const stub = env.MATCH_DO.get(id);
+    const id = testEnv.MATCH_DO.idFromName(matchId);
+    const stub = testEnv.MATCH_DO.get(id);
 
     // Manual settles first
     const manualPayload = {
@@ -137,7 +145,7 @@ describe("MatchDO — single-flight settlement", () => {
       body: JSON.stringify(manualPayload),
     });
     expect(r1.status).toBe(200);
-    const b1 = await r1.json() as { settled: boolean; settleCount: number; homeScore: number; awayScore: number };
+    const b1 = await r1.json<{ settled: boolean; settleCount: number; homeScore: number; awayScore: number }>();
     expect(b1.homeScore).toBe(2);
 
     // Auto tries to overwrite — should be blocked
@@ -154,7 +162,7 @@ describe("MatchDO — single-flight settlement", () => {
       body: JSON.stringify(autoPayload),
     });
     expect(r2.status).toBe(200);
-    const b2 = await r2.json() as { settled: boolean; settleCount: number; homeScore: number; awayScore: number };
+    const b2 = await r2.json<{ settled: boolean; settleCount: number; homeScore: number; awayScore: number }>();
     // Score should still be the manual result (2-0), not the auto attempt (0-0)
     expect(b2.homeScore).toBe(2);
     expect(b2.awayScore).toBe(0);

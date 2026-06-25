@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
-  applyMatchResult,
-  type MatchRecord,
-  type PredictionRecord,
-  type ApplyMatchResultPorts,
-  type ResultSource,
+  applyMatchResult
+  
+  
+  
 } from "./apply-match-result";
+import type {MatchRecord, PredictionRecord, ApplyMatchResultPorts} from "./apply-match-result";
 import { FakeClock } from "./ports/clock";
 
 /**
@@ -65,7 +65,7 @@ function makePorts(
   return {
     matchRepository: {
       getById: async (id: string) => (id === match.id ? { ...match } : null),
-      updateResult: async (id, update) => {
+      updateResult: async (_id, update) => {
         match = { ...match, ...update };
         savedMatch = { ...match };
       },
@@ -111,8 +111,8 @@ describe("applyMatchResult", () => {
       clock
     );
 
-    expect(predictions[0]!.points).toBe(7); // pleno
-    expect(predictions[1]!.points).toBe(4); // outcome(home win)+exact home goals (2=2)
+    expect(predictions[0].points).toBe(7); // pleno
+    expect(predictions[1].points).toBe(4); // outcome(home win)+exact home goals (2=2)
   });
 
   it("sets match.settledAt and stores result on first settlement", async () => {
@@ -214,7 +214,7 @@ describe("applyMatchResult", () => {
     );
 
     expect(ports.savedMatch?.homeScore).toBe(2);
-    expect(predictions[0]!.points).toBe(7);
+    expect(predictions[0].points).toBe(7);
   });
 
   it("auto can update score when no manual pin exists (re-settle on changed result)", async () => {
@@ -236,7 +236,7 @@ describe("applyMatchResult", () => {
     );
 
     // pred was 0-0, result is now 0-0 → pleno → 7
-    expect(predictions[0]!.points).toBe(7);
+    expect(predictions[0].points).toBe(7);
   });
 
   it("throws if match is not found", async () => {

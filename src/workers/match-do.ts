@@ -41,6 +41,9 @@ export interface SettleResult {
 }
 
 export class MatchDO implements DurableObject {
+  // Required by Rpc.DurableObjectBranded (cloudflare workers-types)
+  declare [Rpc.__DURABLE_OBJECT_BRAND]: never;
+
   private state: DurableObjectState;
 
   constructor(state: DurableObjectState, _env: Env) {

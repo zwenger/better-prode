@@ -25,11 +25,13 @@ interface LoaderData {
   entries: LeaderboardEntry[];
 }
 
-const getLeaderboardData = createServerFn({ method: "GET" })
-  .validator(
-    (data: unknown) =>
-      data as { groupId: string; tournamentId?: string }
-  )
+interface LeaderboardInput {
+  groupId: string;
+  tournamentId?: string;
+}
+
+const getLeaderboardData = createServerFn({ method: "GET", strict: false })
+  .validator((data: unknown): LeaderboardInput => data as LeaderboardInput)
   .handler(async ({ data }): Promise<LoaderData> => {
     const db = getDbClient();
     const predRepo = new LibSqlPredictionRepository(db);

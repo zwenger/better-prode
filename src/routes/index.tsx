@@ -23,7 +23,7 @@ function Home() {
       {user ? (
         <div>
           <p className="mb-4" data-testid="welcome-user">
-            Welcome, <strong>{user.name ?? user.email}</strong>!
+            Welcome, <strong>{user.name || user.email}</strong>!
           </p>
           <nav className="space-y-2">
             <Link

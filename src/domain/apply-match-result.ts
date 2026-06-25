@@ -45,18 +45,18 @@ export interface PredictionRecord {
 // --- Port interfaces (minimal, for this domain function) ---
 
 export interface MatchRepository {
-  getById(id: string): Promise<MatchRecord | null>;
-  updateResult(
+  getById: (id: string) => Promise<MatchRecord | null>;
+  updateResult: (
     id: string,
     update: Partial<
       Pick<MatchRecord, "homeScore" | "awayScore" | "resultSource" | "settledAt" | "status">
     >
-  ): Promise<void>;
+  ) => Promise<void>;
 }
 
 export interface PredictionRepository {
-  listByMatch(matchId: string): Promise<PredictionRecord[]>;
-  updatePoints(predictionId: string, points: number): Promise<void>;
+  listByMatch: (matchId: string) => Promise<PredictionRecord[]>;
+  updatePoints: (predictionId: string, points: number) => Promise<void>;
 }
 
 export interface ApplyMatchResultPorts {

@@ -32,5 +32,5 @@ export interface ResultSource {
    * Fetch the latest result for a given match.
    * Returns null if the result is not yet available.
    */
-  getResult(matchId: string): Promise<MatchResult | null>;
+  getResult: (matchId: string) => Promise<MatchResult | null>;
 }
