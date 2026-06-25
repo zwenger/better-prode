@@ -137,7 +137,7 @@ describe("DrizzlePredictionRepository", () => {
     await repo.updatePoints(pred.id, 7);
 
     const [updated] = await repo.listByMatch(MATCH_ID);
-    expect(updated!.points).toBe(7);
+    expect(updated.points).toBe(7);
   });
 
   // C1 RED: leaderboard must only sum points from the requested tournament,

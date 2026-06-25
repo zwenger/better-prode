@@ -142,7 +142,7 @@ export class DrizzlePredictionRepository implements PredictionRepository {
 
     return rows.map((row) => ({
       userId: row.userId,
-      totalPoints: Number(row.totalPoints ?? 0),
+      totalPoints: Number(row.totalPoints),
     }));
   }
 
