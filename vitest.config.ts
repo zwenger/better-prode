@@ -1,9 +1,15 @@
 import { defineConfig, defineProject } from "vitest/config";
-import { cloudflarePool } from "@cloudflare/vitest-pool-workers";
+import { cloudflarePool, cloudflareTest } from "@cloudflare/vitest-pool-workers";
 import path from "node:path";
 
 const alias = {
   "#": path.resolve(__dirname, "./src"),
+};
+
+const workersPoolOptions = {
+  // main exports MatchDO so the MATCH_DO binding resolves in tests
+  main: "./src/workers/worker-entry.ts",
+  wrangler: { configPath: "./wrangler.jsonc" },
 };
 
 /**
@@ -45,12 +51,11 @@ export default defineConfig({
 
       // Project 2: workers runtime tests — Durable Objects, KV, workerd
       defineProject({
+        plugins: [cloudflareTest(workersPoolOptions)],
         test: {
           name: "workers",
           include: ["src/workers/**/*.test.ts"],
-          pool: cloudflarePool({
-            wrangler: { configPath: "./wrangler.jsonc" },
-          }),
+          pool: cloudflarePool(workersPoolOptions),
         },
         resolve: { alias },
       }),
