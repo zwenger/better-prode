@@ -68,7 +68,7 @@
     "vite": "^8.0.0",
     "vitest": "^4.1.5",
     "web-push": "^3.6.7",
-    "wrangler": "^4.70.0"
+    "wrangler": "^4.105.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
