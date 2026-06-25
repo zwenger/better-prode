@@ -1,217 +1,218 @@
-Welcome to your new TanStack Start app! 
+# better-prode
 
-# Getting Started
+**A fast, self-hostable World Cup prediction pool — edge-native, free-tier friendly, and open source.**
 
-To run this application:
+[![CI](https://github.com/zwenger/better-prode/actions/workflows/ci.yml/badge.svg)](https://github.com/zwenger/better-prode/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+
+---
+
+## What is this?
+
+**better-prode** is a World Cup prediction pool ("prode") you can clone and run on your own Cloudflare account in under 30 minutes.
+
+The original inspiration — [prodeenlinea.com](https://prodeenlinea.com) — collapses under match-time traffic, organizes predictions by group instead of by match, and doesn't show you what others in your pool bet. This fixes all of that:
+
+- Predictions are per-match, not per-group — the natural unit for a World Cup pool.
+- Results settle at the edge via Cloudflare Durable Objects, so a single busy full-time moment doesn't take the site down.
+- The leaderboard is edge-cached and invalidated on settlement, not recomputed on every pageload.
+- It runs entirely on free tiers (Cloudflare Workers, Turso free plan) for a typical pool of friends.
+
+---
+
+## Features
+
+| Feature | Details |
+|---------|---------|
+| Google sign-in | OAuth 2.0 via Better Auth; user records in your own DB |
+| Per-match predictions | One score prediction per (user, match), editable until T−5min |
+| Server-authoritative lock | Deadline enforced server-side — no client-clock spoofing |
+| Scoring: pleno system | 0 / 1 / 3 / 4 / 7 pts — outcome, exact goals, and both for pleno |
+| Groups | Create, invite, join, manage members (owner / admin / member roles) |
+| Leaderboard | Per-group standings, cached at the edge, updated seconds after settlement |
+| In-progress view | See same-group predictions once a match kicks off |
+| Pre-kickoff reminders | Push notifications for pool members who haven't predicted yet |
+| Hybrid result ingestion | Auto (Football-Data.org or API-Football) + manual admin backstop |
+| "Manual wins and pins" | Admin can override and lock a result; the API will never overwrite it |
+
+---
+
+## Tech stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | [TanStack Start](https://tanstack.com/start) (SSR + file-based routing) |
+| Runtime | [Cloudflare Workers](https://workers.cloudflare.com/) + [Durable Objects](https://developers.cloudflare.com/durable-objects/) |
+| Database | [Turso](https://turso.tech/) (libSQL / SQLite) |
+| Auth | [Better Auth](https://www.better-auth.com/) + Google OAuth |
+| UI | [Tailwind CSS v4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) |
+| Testing | [Vitest](https://vitest.dev/) (unit + workers pool) + [Playwright](https://playwright.dev/) (E2E) |
+| Bundler | [Vite](https://vitejs.dev/) + [@cloudflare/vite-plugin](https://www.npmjs.com/package/@cloudflare/vite-plugin) |
+
+---
+
+## Run your own
+
+### Prerequisites
+
+Before you begin, you need accounts and credentials from these services:
+
+| Service | What you need | Free tier? |
+|---------|--------------|-----------|
+| [Cloudflare](https://dash.cloudflare.com/) | Account + Wrangler CLI authenticated | Yes |
+| [Turso](https://app.turso.tech/) | Database URL + auth token | Yes |
+| [Google Cloud](https://console.cloud.google.com/apis/credentials) | OAuth 2.0 Client ID + Secret | Yes |
+| [Football-Data.org](https://www.football-data.org/) | API token | Yes (free tier) |
+| [API-Football](https://www.api-football.com/) | API key (optional, alternative provider) | Free tier available |
+
+Node.js 22+ is required. Use the `.nvmrc` file: `nvm use`.
+
+---
+
+### Step-by-step setup
+
+#### 1. Clone and install
 
 ```bash
-npm install
+git clone git@github.com:zwenger/better-prode.git
+cd better-prode
+npm ci
+```
+
+#### 2. Configure environment variables
+
+```bash
+cp .dev.vars.example .dev.vars
+```
+
+Open `.dev.vars` and fill in every value. Each variable has an inline comment with exactly where to find it and how to generate it.
+
+Key variables:
+
+```bash
+# Generate a new secret — do not reuse one from elsewhere
+BETTER_AUTH_SECRET=$(openssl rand -base64 32)
+
+# Generate a new VAPID keypair for push notifications
+npx web-push generate-vapid-keys
+```
+
+#### 3. Create the Turso database and run migrations
+
+```bash
+# Create a database (Turso CLI)
+turso db create better-prode
+
+# Get the connection URL and token
+turso db show better-prode --url
+turso db tokens create better-prode
+
+# Add them to .dev.vars, then run migrations
+npm run db:migrate
+
+# Seed fixture data (teams, matches) for local development
+npm run db:seed
+```
+
+#### 4. Create the Cloudflare KV namespace
+
+The leaderboard edge cache uses a KV namespace. Create it and update `wrangler.jsonc`:
+
+```bash
+npx wrangler kv namespace create LEADERBOARD_CACHE
+# Copy the returned id into wrangler.jsonc → kv_namespaces[0].id
+```
+
+#### 5. Start the development server
+
+```bash
 npm run dev
+# App is at http://localhost:3000
 ```
 
-# Building For Production
+#### 6. Deploy to Cloudflare
 
-To build this application for production:
+Set production secrets before deploying:
 
 ```bash
-npm run build
+npx wrangler secret put BETTER_AUTH_SECRET
+npx wrangler secret put TURSO_DATABASE_URL
+npx wrangler secret put TURSO_AUTH_TOKEN
+npx wrangler secret put GOOGLE_CLIENT_ID
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+npx wrangler secret put FOOTBALL_DATA_API_TOKEN
+npx wrangler secret put VAPID_PUBLIC_KEY
+npx wrangler secret put VAPID_PRIVATE_KEY
+npx wrangler secret put VAPID_SUBJECT
 ```
+
+Then deploy:
+
+```bash
+npm run deploy
+# Runs: vite build && wrangler deploy
+```
+
+Update your Google OAuth redirect URI to `https://<your-worker>.workers.dev/api/auth/callback/google`.
+
+---
+
+## Architecture overview
+
+The domain (scoring, lock rule, result application) is a pure TypeScript hexagonal core with no infrastructure dependencies. Everything time-sensitive flows through an injectable `Clock` port. All result settlement funnels through a single `applyMatchResult` choke point serialized by a per-match Durable Object — this prevents double-computation and absorbs the match-end thundering herd.
+
+```
+Client → TanStack Start SSR (Cloudflare Worker)
+              │
+              ├─ Turso (libSQL) — relational reads, leaderboard SUM
+              ├─ Per-match Durable Object — single-flight applyMatchResult + reminder alarms
+              └─ KV — edge-cached leaderboard, invalidated on settlement
+```
+
+Full design and architectural decisions: [`openspec/changes/world-cup-prode-mvp/design.md`](openspec/changes/world-cup-prode-mvp/design.md)
+
+All specs: [`openspec/`](openspec/)
+
+---
 
 ## Testing
 
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
-
 ```bash
-npm run test
-```
+# Unit tests — domain logic, adapters (Node environment)
+npm test
 
-## Styling
+# Unit tests with coverage report
+npm test -- --coverage
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+# Cloudflare Workers runtime tests — Durable Objects, KV
+npm run test:workers
 
-### Removing Tailwind CSS
+# E2E tests — requires a running app and real credentials (see playwright.config.ts)
+npm run test:e2e
 
-If you prefer not to use Tailwind CSS:
+# Type checking
+npm run typecheck
 
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Uninstall the packages: `npm install @tailwindcss/vite tailwindcss -D`
-
-## Linting & Formatting
-
-
-This project uses [eslint](https://eslint.org/) and [prettier](https://prettier.io/) for linting and formatting. Eslint is configured using [tanstack/eslint-config](https://tanstack.com/config/latest/docs/eslint). The following scripts are available:
-
-```bash
+# Linting
 npm run lint
-npm run format
-npm run check
 ```
 
+Coverage thresholds: 80% minimum on domain, adapters, and infra layers.
 
-## Deploy to Cloudflare Workers
+The project follows **Strict TDD**: write a failing test before writing implementation. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-This project uses the Cloudflare Vite plugin (configured in `vite.config.ts`) and `wrangler.jsonc`:
+---
 
-1. Install Wrangler: `npm install -g wrangler`
-2. Authenticate: `wrangler login`
-3. Deploy: `npx wrangler deploy`
+## Contributing
 
-For production env vars, run `wrangler secret put MY_VAR` for each secret listed in `.env.example`. Public (non-secret) vars go in `wrangler.jsonc` under `vars`.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide: environment setup, testing expectations, commit convention, and PR workflow.
 
-KV, D1, R2, and Durable Object bindings are configured in `wrangler.jsonc` — see https://developers.cloudflare.com/workers/wrangler/configuration/.
+By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
+---
 
+## License
 
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+[MIT](LICENSE) — Copyright (c) 2026 zwenger

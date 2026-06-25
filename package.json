@@ -2,6 +2,9 @@
   "name": "better-prode",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "imports": {
     "#/*": "./src/*"
   },
