@@ -35,5 +35,12 @@
   // Observability
   "observability": {
     "enabled": true
+  },
+
+  // Turso/libSQL secrets — values come from .dev.vars (local) or `wrangler secret put` (production).
+  // Declared here so the DO binding sees them in the Env type.
+  "vars": {
+    "TURSO_DATABASE_URL": "",
+    "TURSO_AUTH_TOKEN": ""
   }
 }

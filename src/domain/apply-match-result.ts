@@ -114,22 +114,31 @@ export async function applyMatchResult(
     return; // auto defers to manual pin
   }
 
-  // Persist result
-  await matchRepository.updateResult(command.matchId, {
-    homeScore: command.homeScore,
-    awayScore: command.awayScore,
-    status: command.status,
-    resultSource: command.source,
-    settledAt: clock.now().toISOString(),
-  });
+  // Persist result — update status and (for finished) score/settledAt
+  if (command.status === "finished") {
+    await matchRepository.updateResult(command.matchId, {
+      homeScore: command.homeScore,
+      awayScore: command.awayScore,
+      status: command.status,
+      resultSource: command.source,
+      settledAt: clock.now().toISOString(),
+    });
 
-  // Compute and store points for every prediction on this match
-  const predictions = await predictionRepository.listByMatch(command.matchId);
-  for (const prediction of predictions) {
-    const points = score(
-      { homeGoals: prediction.homeGoals, awayGoals: prediction.awayGoals },
-      { homeGoals: command.homeScore, awayGoals: command.awayScore }
-    );
-    await predictionRepository.updatePoints(prediction.id, points);
+    // Compute and store final points for every prediction on this match.
+    // Only runs on finished — in_progress interim scores must NOT set points.
+    const predictions = await predictionRepository.listByMatch(command.matchId);
+    for (const prediction of predictions) {
+      const points = score(
+        { homeGoals: prediction.homeGoals, awayGoals: prediction.awayGoals },
+        { homeGoals: command.homeScore, awayGoals: command.awayScore }
+      );
+      await predictionRepository.updatePoints(prediction.id, points);
+    }
+  } else {
+    // in_progress (or scheduled): update status only — drives the bet-lock.
+    // No settledAt, no points — the match is not yet final.
+    await matchRepository.updateResult(command.matchId, {
+      status: command.status,
+    });
   }
 }

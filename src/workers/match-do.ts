@@ -13,15 +13,27 @@
  *   - settleCount: number of times settlement actually ran (idempotency proof)
  *   - settled: boolean flag
  *
- * In the tracer-bullet (PR 1) the settlement logic is self-contained inside
- * the DO — no DB calls — so the single-flight guarantee can be proven purely
- * from the DO storage without wiring up Turso.
- * Full DB integration (applyMatchResult port chain) lands in PR 3.
+ * Phase 4 (PR 4): _doSettle now calls applyMatchResult against Turso.
+ * The DO's single-flight mutex + idempotency/manual-pin guards are the outer
+ * layer; applyMatchResult is the domain choke point with its own guards.
+ * The DO guard runs first (fast, no DB round-trip); only genuinely new
+ * settlements reach the DB.
  */
+
+import { createClient } from "@libsql/client";
+import { DrizzleMatchRepository } from "#/adapters/db/match-repository";
+import { DrizzlePredictionRepository } from "#/adapters/db/prediction-repository";
+import { createDrizzleDb } from "#/infra/db/client";
+import { applyMatchResult } from "#/domain/apply-match-result";
+import { SystemClock } from "#/domain/ports/clock";
 
 export interface Env {
   MATCH_DO: DurableObjectNamespace<MatchDO>;
   LEADERBOARD_CACHE: KVNamespace;
+  /** Turso database URL — forwarded to the DO via vars (wrangler.jsonc). */
+  TURSO_DATABASE_URL: string;
+  /** Turso auth token — forwarded to the DO via vars (wrangler.jsonc). */
+  TURSO_AUTH_TOKEN: string;
 }
 
 export interface SettleCommand {
@@ -45,6 +57,7 @@ export class MatchDO implements DurableObject {
   declare [Rpc.__DURABLE_OBJECT_BRAND]: never;
 
   private state: DurableObjectState;
+  private env: Env;
 
   /**
    * W1 fix: in-memory Promise chain serializes all handleSettle calls.
@@ -65,8 +78,9 @@ export class MatchDO implements DurableObject {
    */
   private _settleMutex: Promise<void> = Promise.resolve();
 
-  constructor(state: DurableObjectState, _env: Env) {
+  constructor(state: DurableObjectState, env: Env) {
     this.state = state;
+    this.env = env;
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -154,7 +168,46 @@ export class MatchDO implements DurableObject {
       return Response.json(result);
     }
 
-    // Settle: persist result
+    // Guards passed — call applyMatchResult against Turso.
+    // The DO's guards (above) serialize access and prevent double-writes;
+    // applyMatchResult has its own idempotency + manual-pin guards as defense-in-depth.
+    try {
+      // In the Workers/workerd environment @libsql/client uses the HTTP (web) client.
+      // The HTTP client requires an https:// URL — convert libsql:// → https:// so
+      // the SDK can reach Turso over HTTP/2 without WebSocket support.
+      const rawUrl = this.env.TURSO_DATABASE_URL;
+      const dbUrl = rawUrl.startsWith("libsql://")
+        ? rawUrl.replace("libsql://", "https://")
+        : rawUrl;
+
+      const client = createClient({
+        url: dbUrl,
+        authToken: this.env.TURSO_AUTH_TOKEN,
+      });
+      const db = createDrizzleDb(client);
+      const matchRepository = new DrizzleMatchRepository(db);
+      const predictionRepository = new DrizzlePredictionRepository(db);
+
+      await applyMatchResult(
+        {
+          matchId: command.matchId,
+          homeScore: command.homeScore,
+          awayScore: command.awayScore,
+          status: command.status,
+          source: command.source,
+        },
+        { matchRepository, predictionRepository },
+        new SystemClock()
+      );
+
+      client.close();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return Response.json({ error: message }, { status: 500 });
+    }
+
+    // Persist the settled result in DO storage so the idempotency + manual-pin
+    // guards work correctly on subsequent calls (without another DB round-trip).
     const settleCount = (stored?.settleCount ?? 0) + 1;
     const newResult = {
       homeScore: command.homeScore,
