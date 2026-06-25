@@ -14,7 +14,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/start-server-core";
 import { auth } from "#/infra/auth/auth";
-import { getDbClient } from "#/infra/db/client";
+import { getDb } from "#/infra/db/client";
 import { SystemClock } from "#/domain/ports/clock";
 import { isLocked } from "#/domain/lock";
 import { validateGoals } from "#/domain/validate-goals";
@@ -52,7 +52,7 @@ export const submitPrediction = createServerFn({ method: "POST" })
       throw new Error("Unauthorized");
     }
 
-    const db = getDbClient();
+    const db = getDb();
     const matchRepo = new LibSqlMatchRepository(db);
     const predRepo = new LibSqlPredictionRepository(db);
 

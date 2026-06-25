@@ -13,8 +13,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/start-server-core";
+import { eq, and } from "drizzle-orm";
 import { auth } from "#/infra/auth/auth";
-import { getDbClient } from "#/infra/db/client";
+import { getDb } from "#/infra/db/client";
+import { groupMembership } from "#/infra/db/schema";
 import { LibSqlPredictionRepository } from "#/adapters/db/prediction-repository";
 import { checkLeaderboardAccess } from "#/domain/leaderboard-access";
 
@@ -42,17 +44,23 @@ const getLeaderboardData = createServerFn({ method: "GET", strict: false })
     const session = await auth.api.getSession({ headers: request.headers });
 
     // W5: check authentication and group membership before returning data
-    const db = getDbClient();
+    const db = getDb();
 
     const accessError = await checkLeaderboardAccess(
       session?.user.id,
       data.groupId,
       async (userId, groupId) => {
-        const result = await db.execute({
-          sql: `SELECT 1 FROM group_membership WHERE group_id = ? AND user_id = ? LIMIT 1`,
-          args: [groupId, userId],
-        });
-        return result.rows.length > 0;
+        const rows = await db
+          .select()
+          .from(groupMembership)
+          .where(
+            and(
+              eq(groupMembership.groupId, groupId),
+              eq(groupMembership.userId, userId)
+            )
+          )
+          .limit(1);
+        return rows.length > 0;
       }
     );
 

@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
-import { Kysely } from "kysely";
-import { createDbClient } from "#/infra/db/client";
-import { LibsqlDialect } from "#/infra/db/kysely-libsql-dialect";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { getDb } from "#/infra/db/client";
+import * as schema from "#/infra/db/schema";
 
 /**
  * Better Auth configuration — Google OAuth provider.
@@ -14,13 +14,13 @@ import { LibsqlDialect } from "#/infra/db/kysely-libsql-dialect";
  * OAuth callback URL: /api/auth/callback/google
  * (register this in Google Cloud Console as an authorized redirect URI)
  *
- * Better Auth auto-creates its own session/account tables alongside ours.
- * It uses Kysely's SqliteDatabase dialect under the hood — the @libsql/client
- * is compatible with the Kysely SQLite interface Better Auth expects.
+ * Schema mapping: Better Auth looks up model names ("user", "session", "account",
+ * "verification") directly from the schema object. Our schema exports match
+ * those names (user, session, account, verification).
+ *
+ * camelCase: true because our auth table columns use camelCase (createdAt,
+ * updatedAt, emailVerified, etc.) matching the live DB schema in 0001+0002.
  */
-const dbClient = createDbClient();
-const kyselyDb = new Kysely({ dialect: new LibsqlDialect({ client: dbClient }) });
-
 export const auth = betterAuth({
   secret: process.env["BETTER_AUTH_SECRET"],
   // baseURL is required for OAuth callbacks and redirects to work correctly.
@@ -28,7 +28,16 @@ export const auth = betterAuth({
   // and to your deployed Workers origin in production.
   baseURL: process.env["BETTER_AUTH_URL"],
 
-  database: { db: kyselyDb, type: "sqlite" as const },
+  database: drizzleAdapter(getDb(), {
+    provider: "sqlite",
+    schema: {
+      user: schema.user,
+      session: schema.session,
+      account: schema.account,
+      verification: schema.verification,
+    },
+    camelCase: true,
+  }),
   socialProviders: {
     google: {
       clientId: process.env["GOOGLE_CLIENT_ID"] ?? "",
