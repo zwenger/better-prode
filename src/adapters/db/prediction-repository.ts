@@ -105,11 +105,17 @@ export class LibSqlPredictionRepository implements PredictionRepository {
     groupId: string,
     tournamentId: string
   ): Promise<LeaderboardEntry[]> {
+    // Fix C1: use INNER JOIN + WHERE m.tournament_id = ? so only predictions
+    // for matches in the requested tournament are summed.  The previous LEFT JOIN
+    // let SUM accumulate points from ALL tournaments for the same user.
+    // Members with zero points still appear via the outer LEFT JOIN from gm.
     const result = await this.db.execute({
       sql: `SELECT gm.user_id, COALESCE(SUM(p.points), 0) as total_points
             FROM group_membership gm
-            LEFT JOIN prediction p ON p.user_id = gm.user_id
-            LEFT JOIN match m ON m.id = p.match_id AND m.tournament_id = ?
+            LEFT JOIN (
+              prediction p
+              INNER JOIN match m ON m.id = p.match_id AND m.tournament_id = ?
+            ) ON p.user_id = gm.user_id
             WHERE gm.group_id = ?
             GROUP BY gm.user_id
             ORDER BY total_points DESC`,
