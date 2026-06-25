@@ -16,10 +16,11 @@
   },
 
   // Durable Object migrations (required for initial deploy)
+  // Free plan requires SQLite-backed Durable Objects (new_sqlite_classes).
   "migrations": [
     {
       "tag": "v1",
-      "new_classes": ["MatchDO"]
+      "new_sqlite_classes": ["MatchDO"]
     }
   ],
 
@@ -27,8 +28,7 @@
   "kv_namespaces": [
     {
       "binding": "LEADERBOARD_CACHE",
-      // Replace with real KV namespace ID from `wrangler kv namespace create LEADERBOARD_CACHE`
-      "id": "PLACEHOLDER_KV_ID"
+      "id": "79a0479aa9244dcaaeeee4b748dfae28"
     }
   ],
 
