@@ -183,6 +183,31 @@ describe("LibSqlPredictionRepository", () => {
     expect(u1Entry!.totalPoints).toBe(7);
   });
 
+  // W3 RED: concurrent upsert for the same (user, match) must update, not 500.
+  // SELECT-then-INSERT races under concurrency — use atomic INSERT ... ON CONFLICT.
+  it("upsert is atomic: concurrent upserts for the same (user, match) update without error", async () => {
+    // Fire 5 concurrent upserts for the same (user, match) pair.
+    // The non-atomic SELECT+INSERT implementation would either throw a UNIQUE
+    // constraint error on the second concurrent insert or produce duplicate rows.
+    const results = await Promise.all(
+      Array.from({ length: 5 }, (_, i) =>
+        repo.upsert({
+          userId: USER_ID_1,
+          matchId: MATCH_ID,
+          homeGoals: i,
+          awayGoals: 0,
+        })
+      )
+    );
+
+    // All calls must resolve without error
+    expect(results).toHaveLength(5);
+
+    // Only one row must exist in the DB (no duplicates)
+    const all = await repo.listByMatch(MATCH_ID);
+    expect(all).toHaveLength(1);
+  });
+
   it("leaderboard SUM: sum of points per user in a group for a tournament", async () => {
     const pred1 = await repo.upsert({
       userId: USER_ID_1,
