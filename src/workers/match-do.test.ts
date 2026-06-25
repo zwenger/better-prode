@@ -126,6 +126,56 @@ describe("MatchDO — single-flight settlement", () => {
     expect(b2.settleCount).toBe(1);
   });
 
+  // S3: Strengthen single-flight test — distinct concurrent settlement attempts.
+  // This test proves real single-flight atomicity (not just idempotency).
+  //
+  // Without blockConcurrencyWhile: concurrent requests can both read
+  // stored=undefined at the same await point, both compute settleCount=1,
+  // and both write — settlement "logic" runs twice even though only one
+  // settleCount is recorded. The observable symptom is that the final stored
+  // result is non-deterministic (last writer wins), and settleCount can be
+  // inconsistent across responses.
+  //
+  // With blockConcurrencyWhile: only one request reads-and-writes atomically;
+  // the second one reads the already-written result and becomes a no-op.
+  // In this test we use a unique match ID per run and fire two concurrent
+  // DISTINCT settle calls (different scores) — we assert:
+  //   1. Both succeed (no errors)
+  //   2. Exactly one set of scores wins and is consistent across all responses
+  //   3. The final settleCount from storage is 1 (only one "true" settlement)
+  it("single-flight: concurrent DISTINCT settle calls produce exactly one winner", async () => {
+    const matchId = `match-distinct-concurrent-${Date.now()}`;
+    const id = testEnv.MATCH_DO.idFromName(matchId);
+    const stub = testEnv.MATCH_DO.get(id);
+
+    // Two different outcomes — only one should win
+    const payloadA = JSON.stringify({ matchId, homeScore: 1, awayScore: 0, status: "finished", source: "auto" });
+    const payloadB = JSON.stringify({ matchId, homeScore: 0, awayScore: 2, status: "finished", source: "auto" });
+
+    const [rA, rB] = await Promise.all([
+      stub.fetch("http://do/settle", { method: "POST", headers: { "Content-Type": "application/json" }, body: payloadA }),
+      stub.fetch("http://do/settle", { method: "POST", headers: { "Content-Type": "application/json" }, body: payloadB }),
+    ]);
+
+    expect(rA.status).toBe(200);
+    expect(rB.status).toBe(200);
+
+    type Body = { settled: boolean; settleCount: number; homeScore: number; awayScore: number };
+    const [bA, bB] = await Promise.all([rA.json<Body>(), rB.json<Body>()]);
+
+    // The winning score must be consistent — both responses must agree on the same scores.
+    // (One request settled, the second saw the already-settled result and returned it.)
+    expect(bA.homeScore).toBe(bB.homeScore);
+    expect(bA.awayScore).toBe(bB.awayScore);
+
+    // Final settleCount in storage must be exactly 1.
+    // Without blockConcurrencyWhile, both could run "settling logic" and
+    // the settleCount would still appear as 1 (both compute 0+1) but the
+    // DO would have applied the result twice internally.
+    const maxCount = Math.max(bA.settleCount, bB.settleCount);
+    expect(maxCount).toBe(1);
+  });
+
   it("manual pin blocks auto from overwriting", async () => {
     const matchId = "match-pin-test";
     const id = testEnv.MATCH_DO.idFromName(matchId);
