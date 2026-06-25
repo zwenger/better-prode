@@ -1,0 +1,58 @@
+{
+  "IdMatch": "400021443",
+  "IdCompetition": "17",
+  "IdSeason": "285023",
+  "IdStage": "289273",
+  "IdGroup": "289275",
+  "Date": "2026-06-11T19:00:00Z",
+  "MatchStatus": 0,
+  "MatchTime": "98'",
+  "GroupName": [
+    {
+      "Locale": "en-GB",
+      "Description": "Group A"
+    }
+  ],
+  "StageName": [
+    {
+      "Locale": "en-GB",
+      "Description": "First Stage"
+    }
+  ],
+  "CompetitionName": [
+    {
+      "Locale": "en-GB",
+      "Description": "FIFA World Cup™"
+    }
+  ],
+  "SeasonName": [
+    {
+      "Locale": "en-GB",
+      "Description": "FIFA World Cup 2026™"
+    }
+  ],
+  "Home": {
+    "IdTeam": "43911",
+    "IdCountry": "MEX",
+    "TeamName": [
+      {
+        "Locale": "en-GB",
+        "Description": "Mexico"
+      }
+    ],
+    "Abbreviation": "MEX",
+    "Score": 2
+  },
+  "Away": {
+    "IdTeam": "43883",
+    "IdCountry": "RSA",
+    "TeamName": [
+      {
+        "Locale": "en-GB",
+        "Description": "South Africa"
+      }
+    ],
+    "Abbreviation": "RSA",
+    "Score": 0
+  }
+}

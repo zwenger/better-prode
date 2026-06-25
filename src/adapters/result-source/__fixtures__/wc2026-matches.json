@@ -1,0 +1,58 @@
+{
+  "IdMatch": "400021468",
+  "IdCompetition": "17",
+  "IdSeason": "285023",
+  "IdStage": "289273",
+  "IdGroup": "289279",
+  "Date": "2026-06-25T20:00:00Z",
+  "MatchStatus": 3,
+  "MatchTime": "81'",
+  "GroupName": [
+    {
+      "Locale": "en-GB",
+      "Description": "Group E"
+    }
+  ],
+  "StageName": [
+    {
+      "Locale": "en-GB",
+      "Description": "First Stage"
+    }
+  ],
+  "CompetitionName": [
+    {
+      "Locale": "en-GB",
+      "Description": "FIFA World Cup™"
+    }
+  ],
+  "SeasonName": [
+    {
+      "Locale": "en-GB",
+      "Description": "FIFA World Cup 2026™"
+    }
+  ],
+  "Home": {
+    "IdTeam": "1895293",
+    "IdCountry": "CUW",
+    "TeamName": [
+      {
+        "Locale": "en-GB",
+        "Description": "Curaçao"
+      }
+    ],
+    "Abbreviation": "CUW",
+    "Score": 0
+  },
+  "Away": {
+    "IdTeam": "43854",
+    "IdCountry": "CIV",
+    "TeamName": [
+      {
+        "Locale": "en-GB",
+        "Description": "Côte d'Ivoire"
+      }
+    ],
+    "Abbreviation": "CIV",
+    "Score": 2
+  }
+}
