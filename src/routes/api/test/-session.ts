@@ -50,6 +50,16 @@ interface TestCookie {
  * This function MUST NOT be deployed to production.
  */
 export async function handleTestSession(request: Request): Promise<Response> {
+  // Hard guard (defense-in-depth, independent of build flags and env vars):
+  // this bypass is only ever legitimate from the local E2E server (localhost).
+  // Even if an e2e build were accidentally deployed to production with
+  // TEST_AUTH_BYPASS set, a real request arrives on the deployed domain (not
+  // localhost) and is rejected — so it can never mint a session in prod.
+  const host = new URL(request.url).hostname;
+  if (host !== "localhost" && host !== "127.0.0.1") {
+    return Response.json({ error: "Not available" }, { status: 403 });
+  }
+
   if (process.env["TEST_AUTH_BYPASS"] !== "true") {
     return Response.json(
       { error: "Test auth bypass is not enabled" },

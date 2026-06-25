@@ -150,6 +150,7 @@ TURSO_DATABASE_URL=libsql://<db-name>-<org>.turso.io \
 ```bash
 npx wrangler secret put BETTER_AUTH_SECRET
 npx wrangler secret put BETTER_AUTH_URL     # your deployed origin, e.g. https://better-prode.workers.dev
+npx wrangler secret put ADMIN_USER_IDS      # comma-separated user IDs allowed to settle results (set after first login)
 npx wrangler secret put TURSO_DATABASE_URL
 npx wrangler secret put TURSO_AUTH_TOKEN
 npx wrangler secret put GOOGLE_CLIENT_ID
