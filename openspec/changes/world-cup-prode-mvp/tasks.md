@@ -36,18 +36,18 @@ Note: project is NOT yet a git repository — `git init` + first commit is task 
 
 ### Phase 0.1: Repository + Toolchain Bootstrap
 
-- [ ] 0.1 `git init`, create `.gitignore` (node_modules, .wrangler, .env*, dist), initial commit placeholder
-- [ ] 0.2 Scaffold TanStack Start + Vite + TypeScript: `npx create-tsrouter-app@latest` or manual; confirm `tsconfig.json` strict mode; path aliases (`~/` → `src/`)
-- [ ] 0.3 Add Tailwind CSS v4 + PostCSS config; verify dev server renders a styled "hello" page
-- [ ] 0.4 Add shadcn/ui: `npx shadcn@latest init`; install Button, Drawer (Vaul), Card components used by MVP
-- [ ] 0.5 Configure Cloudflare Workers + Wrangler: `wrangler.toml` with DO binding `MATCH_DO`, KV namespace `LEADERBOARD_CACHE`, R2 or KV TBD; `wrangler dev` boots without error
-- [ ] 0.6 Configure Turso/libSQL: add `@libsql/client`; `src/infra/db/client.ts` with env-based URL/token; create `db/migrations/` directory; `drizzle.config.ts` (or raw migration runner)
-- [ ] 0.7 Write `db/migrations/0001_init.sql`: all tables (tournament, team, match, user, prediction, group, group_membership, invitation) with constraints, indexes, and CHECK enums per data model
-- [ ] 0.8 Configure Better Auth: `src/infra/auth/auth.ts` with Google OAuth provider; session stored in Turso; expose `/api/auth/[...all]` catch-all route in TanStack Start
-- [ ] 0.9 Set up Vitest + `@cloudflare/vitest-pool-workers`: `vitest.config.ts` with three projects — `unit` (in-process), `workers` (workerd pool), `e2e` (Playwright); confirm `vitest run --project unit` passes with a trivial test
-- [ ] 0.10 Set up Playwright: `playwright.config.ts` with two projects — `chromium-desktop` and `chromium-mobile` (375×812 viewport); `tests/e2e/` directory; test auth bypass helper `tests/e2e/helpers/auth-bypass.ts` (seed user + inject session cookie)
-- [ ] 0.11 Add ESLint (flat config, `@typescript-eslint`), Prettier (with Tailwind plugin), `tsc --noEmit`; add `package.json` scripts: `dev`, `build`, `preview`, `typecheck`, `lint`, `test`, `test:workers`, `test:e2e`, `db:migrate`, `db:seed`
-- [ ] 0.12 Write `src/domain/ports/clock.ts` (Clock interface + SystemClock + FakeClock); confirm `vitest` imports cleanly (zero infra deps)
+- [x] 0.1 `git init`, create `.gitignore` (node_modules, .wrangler, .env*, dist), initial commit placeholder
+- [x] 0.2 Scaffold TanStack Start + Vite + TypeScript: `npx create-tsrouter-app@latest` or manual; confirm `tsconfig.json` strict mode; path aliases (`~/` → `src/`)
+- [x] 0.3 Add Tailwind CSS v4 + PostCSS config; verify dev server renders a styled "hello" page
+- [x] 0.4 Add shadcn/ui: `npx shadcn@latest init`; install Button, Drawer (Vaul), Card components used by MVP
+- [x] 0.5 Configure Cloudflare Workers + Wrangler: `wrangler.toml` with DO binding `MATCH_DO`, KV namespace `LEADERBOARD_CACHE`, R2 or KV TBD; `wrangler dev` boots without error
+- [x] 0.6 Configure Turso/libSQL: add `@libsql/client`; `src/infra/db/client.ts` with env-based URL/token; create `db/migrations/` directory; `drizzle.config.ts` (or raw migration runner)
+- [x] 0.7 Write `db/migrations/0001_init.sql`: all tables (tournament, team, match, user, prediction, group, group_membership, invitation) with constraints, indexes, and CHECK enums per data model
+- [x] 0.8 Configure Better Auth: `src/infra/auth/auth.ts` with Google OAuth provider; session stored in Turso; expose `/api/auth/[...all]` catch-all route in TanStack Start
+- [x] 0.9 Set up Vitest + `@cloudflare/vitest-pool-workers`: `vitest.config.ts` with three projects — `unit` (in-process), `workers` (workerd pool), `e2e` (Playwright); confirm `vitest run --project unit` passes with a trivial test
+- [x] 0.10 Set up Playwright: `playwright.config.ts` with two projects — `chromium-desktop` and `chromium-mobile` (375×812 viewport); `tests/e2e/` directory; test auth bypass helper `tests/e2e/helpers/auth-bypass.ts` (seed user + inject session cookie)
+- [x] 0.11 Add ESLint (flat config, `@typescript-eslint`), Prettier (with Tailwind plugin), `tsc --noEmit`; add `package.json` scripts: `dev`, `build`, `preview`, `typecheck`, `lint`, `test`, `test:workers`, `test:e2e`, `db:migrate`, `db:seed`
+- [x] 0.12 Write `src/domain/ports/clock.ts` (Clock interface + SystemClock + FakeClock); confirm `vitest` imports cleanly (zero infra deps)
 
 ---
 
