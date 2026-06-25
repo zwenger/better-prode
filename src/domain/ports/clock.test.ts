@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { SystemClock, FakeClock } from "./clock";
+import { SystemClock, FakeClock  } from "./clock";
+import type {Clock} from "./clock";
 
 /**
  * TDD: Clock port tests (task 0.12)
@@ -76,13 +77,13 @@ describe("FakeClock", () => {
   it("satisfies the Clock interface (structural check via assignment)", () => {
     // This line proves FakeClock is assignable to Clock at compile time.
     // If Clock interface changes, this test fails to compile.
-    const clock: import("./clock").Clock = fakeClock;
+    const clock: Clock = fakeClock;
     expect(clock.now()).toBeInstanceOf(Date);
   });
 
   it("SystemClock satisfies the Clock interface (structural check)", () => {
     const systemClock = new SystemClock();
-    const clock: import("./clock").Clock = systemClock;
+    const clock: Clock = systemClock;
     expect(clock.now()).toBeInstanceOf(Date);
   });
 });

@@ -14,7 +14,7 @@
  */
 export interface Clock {
   /** Returns the current time as a Date (always in UTC, always a new instance). */
-  now(): Date;
+  now: () => Date;
 }
 
 /**

@@ -18,7 +18,7 @@ import { createDbClient } from "#/infra/db/client";
  */
 export const auth = betterAuth({
   secret: process.env["BETTER_AUTH_SECRET"],
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   database: createDbClient() as any,
   socialProviders: {
     google: {

@@ -1,4 +1,5 @@
-import { createClient, type Client } from "@libsql/client";
+import { createClient  } from "@libsql/client";
+import type {Client} from "@libsql/client";
 
 /**
  * Creates a libSQL/Turso client from environment variables.
