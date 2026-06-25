@@ -1,7 +1,39 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "tanstack-start-app",
+  "name": "better-prode",
   "compatibility_date": "2025-09-02",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry"
+  "main": "@tanstack/react-start/server-entry",
+
+  // Durable Object bindings — MatchDO is a stub in PR 0; full impl in PR 1
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MATCH_DO",
+        "class_name": "MatchDO"
+      }
+    ]
+  },
+
+  // Durable Object migrations (required for initial deploy)
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["MatchDO"]
+    }
+  ],
+
+  // KV namespace for leaderboard edge cache
+  "kv_namespaces": [
+    {
+      "binding": "LEADERBOARD_CACHE",
+      // Replace with real KV namespace ID from `wrangler kv namespace create LEADERBOARD_CACHE`
+      "id": "PLACEHOLDER_KV_ID"
+    }
+  ],
+
+  // Observability
+  "observability": {
+    "enabled": true
+  }
 }
