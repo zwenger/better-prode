@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { Client } from "@libsql/client";
 import { createTestDb } from "./test-helpers";
-import { LibSqlPredictionRepository } from "./prediction-repository";
+import { DrizzlePredictionRepository } from "./prediction-repository";
+import type { DrizzleDb } from "#/infra/db/client";
 
 /**
  * TDD: PredictionRepository adapter tests (task 1.13 RED → 1.14 GREEN)
@@ -15,8 +16,8 @@ import { LibSqlPredictionRepository } from "./prediction-repository";
  *  - leaderboard SUM query works correctly
  */
 
-let db: Client;
-let repo: LibSqlPredictionRepository;
+let db: DrizzleDb & { $client: Client };
+let repo: DrizzlePredictionRepository;
 
 const TOURNAMENT_ID = "t1";
 const HOME_TEAM = "home-team";
@@ -67,11 +68,11 @@ async function seedFixtures(client: Client): Promise<void> {
   });
 }
 
-describe("LibSqlPredictionRepository", () => {
+describe("DrizzlePredictionRepository", () => {
   beforeEach(async () => {
     db = await createTestDb();
-    repo = new LibSqlPredictionRepository(db);
-    await seedFixtures(db);
+    repo = new DrizzlePredictionRepository(db);
+    await seedFixtures(db.$client);
   });
 
   it("upsert inserts a new prediction", async () => {
@@ -136,7 +137,7 @@ describe("LibSqlPredictionRepository", () => {
     await repo.updatePoints(pred.id, 7);
 
     const [updated] = await repo.listByMatch(MATCH_ID);
-    expect(updated.points).toBe(7);
+    expect(updated!.points).toBe(7);
   });
 
   // C1 RED: leaderboard must only sum points from the requested tournament,
@@ -147,22 +148,22 @@ describe("LibSqlPredictionRepository", () => {
     const now = new Date().toISOString();
 
     // Seed a second tournament with its own match
-    await db.execute({
+    await db.$client.execute({
       sql: `INSERT INTO tournament(id, name, created_at) VALUES (?, ?, ?)`,
       args: [TOURNAMENT_ID_2, "Other Tournament", now],
     });
     // Reuse the same teams (they belong to t1 per seedFixtures — add t2 own teams)
     const HOME_TEAM_2 = "home-team-t2";
     const AWAY_TEAM_2 = "away-team-t2";
-    await db.execute({
+    await db.$client.execute({
       sql: `INSERT INTO team(id, tournament_id, name, code) VALUES (?, ?, ?, ?)`,
       args: [HOME_TEAM_2, TOURNAMENT_ID_2, "Home T2", "HT2"],
     });
-    await db.execute({
+    await db.$client.execute({
       sql: `INSERT INTO team(id, tournament_id, name, code) VALUES (?, ?, ?, ?)`,
       args: [AWAY_TEAM_2, TOURNAMENT_ID_2, "Away T2", "AT2"],
     });
-    await db.execute({
+    await db.$client.execute({
       sql: `INSERT INTO match(id, tournament_id, home_team_id, away_team_id, kickoff_utc, status, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
       args: [MATCH_ID_2, TOURNAMENT_ID_2, HOME_TEAM_2, AWAY_TEAM_2, "2026-07-01T18:00:00Z", "finished", now],

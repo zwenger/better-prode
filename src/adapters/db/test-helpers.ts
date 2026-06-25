@@ -1,6 +1,6 @@
 /**
- * DB test helpers — creates an in-memory libSQL DB and runs migrations.
- * Used by all adapter integration tests.
+ * DB test helpers — creates an in-memory libSQL DB wrapped in a Drizzle instance,
+ * runs migrations, and returns it for use in adapter integration tests.
  *
  * Uses :memory: URL so no file system is needed and each test gets
  * a clean slate.
@@ -11,24 +11,18 @@ import type { Client } from "@libsql/client";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createDrizzleDb } from "#/infra/db/client";
+import type { DrizzleDb } from "#/infra/db/client";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 /**
- * Creates an in-memory libSQL client and applies the initial migration.
- * Call this in beforeEach to get a clean DB for each test.
+ * Runs a SQL migration file against the given libSQL client.
+ * Strips single-line comments then splits on semicolons.
  */
-export async function createTestDb(): Promise<Client> {
-  const db = createClient({ url: ":memory:" });
+async function runMigrationFile(client: Client, filePath: string): Promise<void> {
+  const sql = readFileSync(filePath, "utf8");
 
-  const migrationPath = join(
-    __dirname,
-    "../../../db/migrations/0001_init.sql"
-  );
-  const sql = readFileSync(migrationPath, "utf8");
-
-  // SQLite in-memory doesn't support multi-statement execute in a single call.
-  // Remove single-line comments then split on semicolons.
   const withoutComments = sql
     .split("\n")
     .map((line) => {
@@ -43,10 +37,25 @@ export async function createTestDb(): Promise<Client> {
     .filter((s) => s.length > 0);
 
   for (const stmt of statements) {
-    await db.execute(stmt);
+    await client.execute(stmt);
   }
+}
 
-  return db;
+/**
+ * Creates an in-memory libSQL client with the full schema applied,
+ * wrapped in a Drizzle ORM instance.
+ * Call this in beforeEach to get a clean DB for each test.
+ */
+export async function createTestDb(): Promise<DrizzleDb & { $client: Client }> {
+  const client = createClient({ url: ":memory:" });
+
+  const migrationsDir = join(__dirname, "../../../db/migrations");
+  await runMigrationFile(client, join(migrationsDir, "0001_init.sql"));
+  await runMigrationFile(client, join(migrationsDir, "0002_better_auth_tables.sql"));
+
+  const db = createDrizzleDb(client);
+  // Expose the underlying client for test fixtures that use raw SQL inserts.
+  return Object.assign(db, { $client: client });
 }
 
 /** Generate a test ID (deterministic for readability). */

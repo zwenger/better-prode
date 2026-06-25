@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { Client } from "@libsql/client";
 import { createTestDb } from "./test-helpers";
-import { LibSqlMatchRepository } from "./match-repository";
+import { DrizzleMatchRepository } from "./match-repository";
+import type { DrizzleDb } from "#/infra/db/client";
 
 /**
  * TDD: MatchRepository adapter tests (task 1.11 RED → 1.12 GREEN)
@@ -15,8 +16,8 @@ import { LibSqlMatchRepository } from "./match-repository";
  *  - round-trip through insert + getById
  */
 
-let db: Client;
-let repo: LibSqlMatchRepository;
+let db: DrizzleDb & { $client: Client };
+let repo: DrizzleMatchRepository;
 
 const TOURNAMENT_ID = "tournament-1";
 const HOME_TEAM = "team-home";
@@ -52,11 +53,11 @@ async function seedFixtures(client: Client): Promise<void> {
   });
 }
 
-describe("LibSqlMatchRepository", () => {
+describe("DrizzleMatchRepository", () => {
   beforeEach(async () => {
     db = await createTestDb();
-    repo = new LibSqlMatchRepository(db);
-    await seedFixtures(db);
+    repo = new DrizzleMatchRepository(db);
+    await seedFixtures(db.$client);
   });
 
   it("getById returns the match when it exists", async () => {

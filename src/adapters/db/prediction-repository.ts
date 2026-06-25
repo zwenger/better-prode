@@ -1,11 +1,21 @@
 /**
- * LibSqlPredictionRepository — implements PredictionRepository port against Turso/libSQL.
+ * DrizzlePredictionRepository — implements PredictionRepository port against Turso/libSQL
+ * using Drizzle ORM query builder.
  *
- * UNIQUE(user_id, match_id) constraint is handled via INSERT OR REPLACE (upsert).
- * The leaderboard SUM query aggregates stored points — scoring is never re-invoked.
+ * Replaces the raw SQL LibSqlPredictionRepository.
+ * UNIQUE(user_id, match_id) constraint is handled via Drizzle's .onConflictDoUpdate().
+ * The leaderboard SUM query preserves the C1 fix: INNER JOIN match on tournament_id
+ * so only predictions from the requested tournament are summed, while LEFT JOIN from
+ * group_membership ensures zero-point members still appear.
  */
 
-import type { Client } from "@libsql/client";
+import { eq, sql } from "drizzle-orm";
+import type { DrizzleDb } from "#/infra/db/client";
+import {
+  prediction as predictionTable,
+  match as matchTable,
+  groupMembership,
+} from "#/infra/db/schema";
 import type {
   PredictionRepository,
   PredictionRecord,
@@ -17,24 +27,30 @@ export interface LeaderboardEntry {
   totalPoints: number;
 }
 
-export class LibSqlPredictionRepository implements PredictionRepository {
-  constructor(private readonly db: Client) {}
+export class DrizzlePredictionRepository implements PredictionRepository {
+  constructor(private readonly db: DrizzleDb) {}
 
   async listByMatch(matchId: string): Promise<PredictionRecord[]> {
-    const result = await this.db.execute({
-      sql: `SELECT id, user_id, match_id, home_goals, away_goals, points
-            FROM prediction WHERE match_id = ?`,
-      args: [matchId],
-    });
+    const rows = await this.db
+      .select({
+        id: predictionTable.id,
+        userId: predictionTable.userId,
+        matchId: predictionTable.matchId,
+        homeGoals: predictionTable.homeGoals,
+        awayGoals: predictionTable.awayGoals,
+        points: predictionTable.points,
+      })
+      .from(predictionTable)
+      .where(eq(predictionTable.matchId, matchId));
 
-    return result.rows.map(this.rowToRecord);
+    return rows.map(this.rowToRecord);
   }
 
   async updatePoints(predictionId: string, points: number): Promise<void> {
-    await this.db.execute({
-      sql: `UPDATE prediction SET points = ? WHERE id = ?`,
-      args: [points, predictionId],
-    });
+    await this.db
+      .update(predictionTable)
+      .set({ points })
+      .where(eq(predictionTable.id, predictionId));
   }
 
   async upsert(
@@ -46,31 +62,38 @@ export class LibSqlPredictionRepository implements PredictionRepository {
     // W3 fix: atomic upsert — INSERT ... ON CONFLICT(user_id, match_id) DO UPDATE
     // replaces the non-atomic SELECT-then-INSERT/UPDATE pattern which races under
     // concurrent submissions for the same (user, match).
-    await this.db.execute({
-      sql: `INSERT INTO prediction(id, user_id, match_id, home_goals, away_goals, points, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, NULL, ?, ?)
-            ON CONFLICT(user_id, match_id)
-            DO UPDATE SET home_goals = excluded.home_goals,
-                          away_goals = excluded.away_goals,
-                          updated_at = excluded.updated_at`,
-      args: [
+    await this.db
+      .insert(predictionTable)
+      .values({
         id,
-        prediction.userId,
-        prediction.matchId,
-        prediction.homeGoals,
-        prediction.awayGoals,
-        now,
-        now,
-      ],
-    });
+        userId: prediction.userId,
+        matchId: prediction.matchId,
+        homeGoals: prediction.homeGoals,
+        awayGoals: prediction.awayGoals,
+        points: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [predictionTable.userId, predictionTable.matchId],
+        set: {
+          homeGoals: prediction.homeGoals,
+          awayGoals: prediction.awayGoals,
+          updatedAt: now,
+        },
+      });
 
     // Fetch the persisted row to return the canonical id (may differ from
     // our generated id if a conflict occurred and the original row was kept).
-    const existing = await this.db.execute({
-      sql: `SELECT id FROM prediction WHERE user_id = ? AND match_id = ?`,
-      args: [prediction.userId, prediction.matchId],
-    });
-    const persistedId = (existing.rows[0]?.["id"] ?? id) as string;
+    const rows = await this.db
+      .select({ id: predictionTable.id })
+      .from(predictionTable)
+      .where(
+        sql`${predictionTable.userId} = ${prediction.userId} AND ${predictionTable.matchId} = ${prediction.matchId}`
+      )
+      .limit(1);
+
+    const persistedId = rows[0]?.id ?? id;
 
     return {
       id: persistedId,
@@ -86,47 +109,66 @@ export class LibSqlPredictionRepository implements PredictionRepository {
    * Leaderboard SUM query — aggregates stored points per user in a group.
    * Design decision #5: stored points, never re-invokes scoring function.
    *
-   * SELECT u.id, SUM(p.points) FROM group_membership gm
-   *   JOIN prediction p ON p.user_id = gm.user_id
-   *   JOIN match m ON m.id = p.match_id
-   *   WHERE gm.group_id = ? AND m.tournament_id = ?
+   * Fix C1: INNER JOIN match on tournament_id so only predictions for matches
+   * in the requested tournament are summed. The outer LEFT JOIN from
+   * group_membership ensures zero-point members still appear.
+   *
+   * Equivalent SQL:
+   *   SELECT gm.user_id, COALESCE(SUM(p.points), 0) as total_points
+   *   FROM group_membership gm
+   *   LEFT JOIN (
+   *     prediction p
+   *     INNER JOIN match m ON m.id = p.match_id AND m.tournament_id = ?
+   *   ) ON p.user_id = gm.user_id
+   *   WHERE gm.group_id = ?
    *   GROUP BY gm.user_id
+   *   ORDER BY total_points DESC
    */
   async getLeaderboard(
     groupId: string,
     tournamentId: string
   ): Promise<LeaderboardEntry[]> {
-    // Fix C1: use INNER JOIN + WHERE m.tournament_id = ? so only predictions
-    // for matches in the requested tournament are summed.  The previous LEFT JOIN
-    // let SUM accumulate points from ALL tournaments for the same user.
-    // Members with zero points still appear via the outer LEFT JOIN from gm.
-    const result = await this.db.execute({
-      sql: `SELECT gm.user_id, COALESCE(SUM(p.points), 0) as total_points
-            FROM group_membership gm
-            LEFT JOIN (
-              prediction p
-              INNER JOIN match m ON m.id = p.match_id AND m.tournament_id = ?
-            ) ON p.user_id = gm.user_id
-            WHERE gm.group_id = ?
-            GROUP BY gm.user_id
-            ORDER BY total_points DESC`,
-      args: [tournamentId, groupId],
-    });
+    // The C1 fix requires a LEFT JOIN of a derived table (prediction INNER JOIN match).
+    // Drizzle does not yet support inlined subquery joins as a first-class API, so we
+    // use db.all() with a raw SQL template which is still fully parameterized (no string
+    // interpolation of user data — groupId and tournamentId are bound as SQL parameters).
+    const rows = await this.db.all<{ userId: string; totalPoints: number }>(sql`
+      SELECT gm.user_id AS userId, COALESCE(SUM(p.points), 0) AS totalPoints
+      FROM group_membership gm
+      LEFT JOIN (
+        prediction p
+        INNER JOIN match m ON m.id = p.match_id AND m.tournament_id = ${tournamentId}
+      ) ON p.user_id = gm.user_id
+      WHERE gm.group_id = ${groupId}
+      GROUP BY gm.user_id
+      ORDER BY totalPoints DESC
+    `);
 
-    return result.rows.map((row) => ({
-      userId: row["user_id"] as string,
-      totalPoints: Number(row["total_points"] ?? 0),
+    return rows.map((row) => ({
+      userId: row.userId,
+      totalPoints: Number(row.totalPoints ?? 0),
     }));
   }
 
-  private rowToRecord(row: Record<string, unknown>): PredictionRecord {
+  private rowToRecord(row: {
+    id: string;
+    userId: string;
+    matchId: string;
+    homeGoals: number;
+    awayGoals: number;
+    points: number | null;
+  }): PredictionRecord {
     return {
-      id: row["id"] as string,
-      userId: row["user_id"] as string,
-      matchId: row["match_id"] as string,
-      homeGoals: row["home_goals"] as number,
-      awayGoals: row["away_goals"] as number,
-      points: row["points"] as number | null,
+      id: row.id,
+      userId: row.userId,
+      matchId: row.matchId,
+      homeGoals: row.homeGoals,
+      awayGoals: row.awayGoals,
+      points: row.points,
     };
   }
 }
+
+// Keep the old name exported as an alias so existing call sites
+// that import LibSqlPredictionRepository continue to compile during migration.
+export { DrizzlePredictionRepository as LibSqlPredictionRepository };
