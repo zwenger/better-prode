@@ -60,11 +60,14 @@ const BASE_STRUCTURE: TournamentStructure = {
 };
 
 /** Structure with an updated kickoff on the first match (reschedule scenario). */
+// Array access is non-nullable in this tsconfig (no noUncheckedIndexedAccess)
+const FIRST_MATCH = BASE_STRUCTURE.matches[0];
+
 const RESCHEDULED_STRUCTURE: TournamentStructure = {
   ...BASE_STRUCTURE,
   matches: [
     {
-      ...BASE_STRUCTURE.matches[0]!,
+      ...FIRST_MATCH,
       kickoffUtc: "2026-06-15T21:00:00.000Z", // 3 hours later
     },
     ...BASE_STRUCTURE.matches.slice(1),
@@ -77,7 +80,7 @@ function finishedStructure(matchId: string): TournamentStructure {
     ...BASE_STRUCTURE,
     matches: [
       {
-        ...BASE_STRUCTURE.matches[0]!,
+        ...FIRST_MATCH,
         id: matchId,
         status: "finished",
         homeScore: 2,
@@ -176,7 +179,7 @@ describe("importTournament — tournament row idempotency (task 2.3)", () => {
 
     const rows = await db.query.tournament.findMany();
     expect(rows).toHaveLength(1);
-    expect(rows[0]!.id).toBe("17-285023");
+    expect(rows[0]?.id).toBe("17-285023");
 
     // Both runs should report same team count
     expect(result1.upsertedTeams).toBe(result2.upsertedTeams);

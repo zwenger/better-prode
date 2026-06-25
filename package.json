@@ -25,7 +25,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "node scripts/db-seed.js",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy",
+    "import:tournament": "tsx scripts/import-tournament.ts"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.42.3",
