@@ -36,20 +36,26 @@ VALUES (
 );
 
 -- Test user (used by auth-bypass helper)
-INSERT INTO "user"(id, email, name, created_at)
+INSERT INTO "user"(id, name, email, emailVerified, image, createdAt, updatedAt)
 VALUES (
   'test-user-e2e-seed',
-  'test@better-prode.test',
   'E2E Test User',
+  'test@better-prode.test',
+  0,
+  NULL,
+  '2026-06-01T00:00:00.000Z',
   '2026-06-01T00:00:00.000Z'
 );
 
 -- Admin user (for apply-result E2E)
-INSERT INTO "user"(id, email, name, created_at)
+INSERT INTO "user"(id, name, email, emailVerified, image, createdAt, updatedAt)
 VALUES (
   'test-admin-e2e-seed',
-  'admin@better-prode.test',
   'E2E Admin User',
+  'admin@better-prode.test',
+  0,
+  NULL,
+  '2026-06-01T00:00:00.000Z',
   '2026-06-01T00:00:00.000Z'
 );
 

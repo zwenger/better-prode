@@ -43,9 +43,9 @@ CREATE TABLE verification (
   id TEXT PRIMARY KEY,
   identifier TEXT NOT NULL,
   value TEXT NOT NULL,
-  expiresAt TEXT NOT NULL,   -- ISO 8601 UTC
-  createdAt TEXT,            -- ISO 8601 UTC (nullable for compatibility)
-  updatedAt TEXT             -- ISO 8601 UTC (nullable for compatibility)
+  expiresAt TEXT NOT NULL,  -- ISO 8601 UTC
+  createdAt TEXT NOT NULL,  -- ISO 8601 UTC
+  updatedAt TEXT NOT NULL   -- ISO 8601 UTC
 );
 
 CREATE INDEX idx_verification_identifier ON verification(identifier);
