@@ -21,7 +21,7 @@ import type { Env } from "./match-do";
 
 // Cast env to the locally-defined Env type so TypeScript knows about MATCH_DO.
 // The workers vitest pool binds MATCH_DO per wrangler.jsonc at runtime.
-const testEnv = env as unknown as Env;
+const testEnv = env as Env;
 
 describe("MatchDO — single-flight settlement", () => {
   beforeEach(async () => {

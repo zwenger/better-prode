@@ -45,7 +45,7 @@ const getLeaderboardData = createServerFn({ method: "GET", strict: false })
     const db = getDbClient();
 
     const accessError = await checkLeaderboardAccess(
-      session?.user?.id,
+      session?.user.id,
       data.groupId,
       async (userId, groupId) => {
         const result = await db.execute({

@@ -47,12 +47,12 @@ function isAdmin(userId: string): boolean {
 export const applyResult = createServerFn({ method: "POST" })
   .validator((data: unknown): ApplyResultInput => {
     // W2: reject invalid goal values with HTTP 400 before touching the DO.
-    const input = data as ApplyResultInput;
-    const goalsError = validateGoals(input?.homeScore, input?.awayScore);
+    const raw = data as Record<string, unknown>;
+    const goalsError = validateGoals(raw["homeScore"], raw["awayScore"]);
     if (goalsError) {
       throw Object.assign(new Error(goalsError), { status: 400 });
     }
-    return input;
+    return data as ApplyResultInput;
   })
   .handler(async ({ data }): Promise<ApplyResultOutput> => {
     const request = getRequest();
