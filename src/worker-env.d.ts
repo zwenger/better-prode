@@ -9,5 +9,9 @@ declare namespace Cloudflare {
   interface Env {
     MATCH_DO: DurableObjectNamespace;
     LEADERBOARD_CACHE: KVNamespace;
+    /** Turso/libSQL database URL — passed as a secret var to the DO for DB settlement. */
+    TURSO_DATABASE_URL: string;
+    /** Turso/libSQL auth token — passed as a secret var to the DO for DB settlement. */
+    TURSO_AUTH_TOKEN: string;
   }
 }
