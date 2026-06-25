@@ -22,28 +22,27 @@
  *
  * Custom routes handled here (before TanStack Start):
  *   POST /api/test/session — test-only auth bypass endpoint (E2E Playwright).
- *     S1: ONLY active in non-production builds (import.meta.env.DEV guard).
- *     Also gated by TEST_AUTH_BYPASS=true at runtime for defense-in-depth.
- *     MUST NOT be deployed to production — the build-time guard ensures
- *     tree-shaking eliminates all bypass code from the prod bundle.
+ *     S1: EXCLUDED from the production bundle via VITE_TEST_AUTH_ENABLED guard.
+ *     Only included when `vite build --mode e2e` sets VITE_TEST_AUTH_ENABLED=true
+ *     (see scripts/e2e-server.sh and .env.e2e).
+ *     Defense-in-depth: also gated by TEST_AUTH_BYPASS=true at runtime.
  */
 import {
   createServerEntry,
   default as startEntry,
 } from "@tanstack/react-start/server-entry";
 
-// S1: Import the test-auth handler only in non-production builds.
-// import.meta.env.DEV is `true` during `vite dev` and Vitest, `false` during
-// `vite build` for production. Rolldown/Rollup dead-code-eliminates the entire
-// branch (and the imported module) when DEV=false, so the bypass handler is
-// completely absent from the production bundle.
+// S1: Build-time guard — VITE_TEST_AUTH_ENABLED is only true in e2e builds
+// (`vite build --mode e2e`). In production builds (`vite build` or `vite build --mode production`),
+// this constant is false and Rolldown/Rollup dead-code-eliminates the entire
+// branch plus the imported module, making it impossible to reach in prod.
 //
 // Defense-in-depth layers:
-//   1. Build-time: this DEV guard → tree-shaken in prod, import eliminated
+//   1. Build-time: VITE_TEST_AUTH_ENABLED=false → tree-shaken, import eliminated
 //   2. Runtime: TEST_AUTH_BYPASS=true env-var check inside handleTestSession
-const handleTestSession = import.meta.env.DEV
-  // Dynamic import keeps the module out of the initial bundle even in dev builds
-  // when this path is not taken at startup. In dev it is evaluated lazily.
+const TEST_AUTH_ENABLED = import.meta.env.VITE_TEST_AUTH_ENABLED === "true";
+
+const handleTestSession = TEST_AUTH_ENABLED
   ? (await import("./routes/api/test/session")).handleTestSession
   : null;
 
@@ -52,8 +51,7 @@ export default createServerEntry({
     const url = new URL(request.url);
 
     // Intercept the test-only auth bypass endpoint.
-    // Guard: only active when handleTestSession was loaded (non-prod builds)
-    // AND TEST_AUTH_BYPASS=true at runtime.
+    // Only reachable in e2e builds where handleTestSession was included.
     if (
       handleTestSession !== null &&
       url.pathname === "/api/test/session" &&
