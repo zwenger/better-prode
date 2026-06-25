@@ -22,21 +22,43 @@
  *
  * Custom routes handled here (before TanStack Start):
  *   POST /api/test/session — test-only auth bypass endpoint (E2E Playwright).
- *     Only active when TEST_AUTH_BYPASS=true. MUST NOT be deployed to production.
+ *     S1: ONLY active in non-production builds (import.meta.env.DEV guard).
+ *     Also gated by TEST_AUTH_BYPASS=true at runtime for defense-in-depth.
+ *     MUST NOT be deployed to production — the build-time guard ensures
+ *     tree-shaking eliminates all bypass code from the prod bundle.
  */
 import {
   createServerEntry,
   default as startEntry,
 } from "@tanstack/react-start/server-entry";
-import { handleTestSession } from "./routes/api/test/session";
+
+// S1: Import the test-auth handler only in non-production builds.
+// import.meta.env.DEV is `true` during `vite dev` and Vitest, `false` during
+// `vite build` for production. Rolldown/Rollup dead-code-eliminates the entire
+// branch (and the imported module) when DEV=false, so the bypass handler is
+// completely absent from the production bundle.
+//
+// Defense-in-depth layers:
+//   1. Build-time: this DEV guard → tree-shaken in prod, import eliminated
+//   2. Runtime: TEST_AUTH_BYPASS=true env-var check inside handleTestSession
+const handleTestSession = import.meta.env.DEV
+  // Dynamic import keeps the module out of the initial bundle even in dev builds
+  // when this path is not taken at startup. In dev it is evaluated lazily.
+  ? (await import("./routes/api/test/session")).handleTestSession
+  : null;
 
 export default createServerEntry({
   fetch(request) {
     const url = new URL(request.url);
 
     // Intercept the test-only auth bypass endpoint.
-    // SECURITY: Only available when TEST_AUTH_BYPASS=true.
-    if (url.pathname === "/api/test/session" && request.method === "POST") {
+    // Guard: only active when handleTestSession was loaded (non-prod builds)
+    // AND TEST_AUTH_BYPASS=true at runtime.
+    if (
+      handleTestSession !== null &&
+      url.pathname === "/api/test/session" &&
+      request.method === "POST"
+    ) {
       return handleTestSession(request);
     }
 
