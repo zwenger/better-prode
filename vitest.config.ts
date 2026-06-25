@@ -10,6 +10,18 @@ const workersPoolOptions = {
   // main exports MatchDO so the MATCH_DO binding resolves in tests
   main: "./src/workers/worker-entry.ts",
   wrangler: { configPath: "./wrangler.jsonc" },
+  // Override Turso credentials to empty strings for the workers pool.
+  // The DO's _doSettle skips the DB call when TURSO_DATABASE_URL === "",
+  // so single-flight / idempotency / manual-pin tests run storage-only and
+  // NEVER touch any remote database (not even via .dev.vars).
+  // DB-settlement behaviour is covered by src/adapters/db/settlement-integration.test.ts
+  // running against an in-memory libSQL instance in the unit project.
+  miniflare: {
+    bindings: {
+      TURSO_DATABASE_URL: "",
+      TURSO_AUTH_TOKEN: "",
+    },
+  },
 };
 
 /**
