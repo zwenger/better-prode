@@ -14,11 +14,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  ingestMatchResults,
-  type IngestResultsInput,
-  type IngestDeps,
-} from "./ingest-results";
+import { ingestMatchResults } from "./ingest-results";
+import type { IngestResultsInput, IngestDeps } from "./ingest-results";
 import type { MatchResult } from "#/domain/ports/result-source";
 import type { MatchRecord } from "#/domain/apply-match-result";
 

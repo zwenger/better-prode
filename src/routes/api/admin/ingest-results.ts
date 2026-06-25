@@ -155,10 +155,11 @@ export interface IngestResultsApiOutput {
 export const ingestResults = createServerFn({ method: "GET" })
   .validator((data: unknown): IngestResultsApiInput => {
     const raw = data as Record<string, unknown>;
-    if (!raw["tournamentId"] || typeof raw["tournamentId"] !== "string") {
+    const tid = raw["tournamentId"];
+    if (!tid || typeof tid !== "string") {
       throw Object.assign(new Error("tournamentId is required"), { status: 400 });
     }
-    return { tournamentId: raw["tournamentId"] as string };
+    return { tournamentId: tid };
   })
   .handler(async ({ data }): Promise<IngestResultsApiOutput> => {
     // Lazy imports keep Workers-specific bindings out of the module-level
@@ -169,7 +170,7 @@ export const ingestResults = createServerFn({ method: "GET" })
       { getDb },
       { FifaAdapter },
       { match: matchTable },
-      { eq, inArray, lte },
+      { eq, inArray, lte, and },
     ] = await Promise.all([
       import("cloudflare:workers"),
       import("#/infra/auth/auth"),
@@ -198,9 +199,11 @@ export const ingestResults = createServerFn({ method: "GET" })
           .select()
           .from(matchTable)
           .where(
-            inArray(matchTable.status, ["scheduled", "in_progress"]) &&
-            eq(matchTable.tournamentId, tournamentId) &&
-            lte(matchTable.kickoffUtc, now)
+            and(
+              inArray(matchTable.status, ["scheduled", "in_progress"]),
+              eq(matchTable.tournamentId, tournamentId),
+              lte(matchTable.kickoffUtc, now)
+            )
           );
         return rows.map((row) => ({
           id: row.id,
