@@ -7,6 +7,18 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - dependencies
+    groups:
+      # One PR for all non-major npm updates (minor + patch).
+      npm-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+      # One PR per ecosystem for major updates, so breaking changes stay reviewable.
+      npm-major:
+        applies-to: version-updates
+        update-types:
+          - major
 
   - package-ecosystem: github-actions
     directory: "/"
@@ -15,3 +27,8 @@ updates:
     labels:
       - dependencies
       - ci
+    groups:
+      # One PR for all GitHub Actions updates.
+      github-actions:
+        patterns:
+          - "*"
