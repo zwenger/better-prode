@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/start-server-core";
 import { auth } from "#/infra/auth/auth";
+import { authClient } from "#/infra/auth/auth-client";
 
 const getSession = createServerFn({ method: "GET" }).handler(async () => {
   const request = getRequest();
@@ -40,13 +41,19 @@ function Home() {
           <p className="mb-4 text-muted-foreground" data-testid="login-prompt">
             Sign in to start predicting match scores.
           </p>
-          <a
-            href="/api/auth/sign-in/google"
-            className="block px-4 py-2 bg-primary text-primary-foreground rounded text-center"
+          <button
+            type="button"
+            onClick={() =>
+              authClient.signIn.social({
+                provider: "google",
+                callbackURL: "/",
+              })
+            }
+            className="block w-full px-4 py-2 bg-primary text-primary-foreground rounded text-center"
             data-testid="sign-in-google"
           >
             Sign in with Google
-          </a>
+          </button>
         </div>
       )}
     </div>
