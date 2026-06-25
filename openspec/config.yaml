@@ -1,0 +1,59 @@
+schema: spec-driven
+version: "1.0"
+project: better-prode
+initialized: 2026-06-25
+artifact_store: hybrid
+
+context: |
+  Project: better-prode — greenfield rebuild of a World Cup prediction pool.
+  Stack: TypeScript + TanStack Start (React + Vite, SSR, edge) + Turso (libSQL/SQLite) + Cloudflare (Pages/Workers/Durable Objects/Cron Triggers) + Better Auth (Google OAuth) + Tailwind CSS + shadcn/ui + TanStack Table + TanStack Query.
+  Architecture: Hexagonal. Match is the central domain entity. Scoring: {0,1,3,4,7} point set. Predictions locked at T-5min server-side. Results via hybrid ingestion adapter (auto API + manual admin). Triggering: lazy on-demand + DO alarm safety-net + manual admin backstop, all funneled through a per-match Durable Object.
+  Auth: Google OAuth only (Better Auth). Users stored in own DB.
+  UI: Mobile-first, match-organized (not group-organized), big +/- steppers for score entry, TanStack Table for leaderboard.
+  Timezone: UTC everywhere server-side; display via Intl.DateTimeFormat at the output edge only.
+
+testing:
+  strict_tdd: true
+  test_runner: vitest
+  test_command: "vitest"
+  test_command_watch: "vitest --watch"
+  coverage_command: "vitest --coverage"
+  layers:
+    unit: { available: true, tool: vitest }
+    integration: { available: true, tool: vitest }
+    e2e: { available: false, tool: null }
+  quality:
+    linter: { available: true, command: "eslint ." }
+    type_checker: { available: true, command: "tsc --noEmit" }
+    formatter: { available: true, command: "prettier --check ." }
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Reference the decided domain model and scoring rules (stored in engram architecture/domain-model)
+    - Reference the ingestion adapter pattern (stored in engram architecture/ingestion)
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+    - Prediction lock MUST be validated server-side (never client-only)
+    - All timestamps MUST be stored/compared in UTC
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+    - For Cloudflare Durable Object interactions document the single-flight guarantee
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    - Follow existing code patterns
+    tdd: true
+    test_command: "vitest"
+    strict_tdd: true
+    tdd_note: "RED-GREEN-REFACTOR is mandatory. Write failing test first, then implement."
+  verify:
+    test_command: "vitest"
+    build_command: "vite build"
+    coverage_threshold: 80
+  archive:
+    - Warn before merging destructive deltas
+    - Preserve ingestion adapter interface contract across changes

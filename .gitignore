@@ -1,16 +1,19 @@
 # Dependencies
-node_modules/
+node_modules
 .pnp
 .pnp.js
 
 # Build outputs
-dist/
-build/
-.output/
-.vinxi/
+dist
+dist-ssr
+build
+.output
+.vinxi
+.nitro
+.tanstack
 
 # Cloudflare
-.wrangler/
+.wrangler
 .dev.vars
 
 # Environment
@@ -20,19 +23,20 @@ build/
 !.dev.vars.example
 
 # Coverage
-coverage/
-.nyc_output/
+coverage
+.nyc_output
 
 # Testing
-playwright-report/
-test-results/
+playwright-report
+test-results
 
 # TypeScript
 *.tsbuildinfo
+*.local
 
 # Editor
-.vscode/
-.idea/
+.vscode
+.idea
 *.swp
 *.swo
 
@@ -45,3 +49,6 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# TanStack generated
+__unconfig*
