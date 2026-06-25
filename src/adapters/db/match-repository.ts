@@ -26,7 +26,7 @@ export class DrizzleMatchRepository implements MatchRepository {
 
     if (rows.length === 0) return null;
 
-    return this.rowToRecord(rows[0]!);
+    return this.rowToRecord(rows[0]);
   }
 
   async updateResult(
