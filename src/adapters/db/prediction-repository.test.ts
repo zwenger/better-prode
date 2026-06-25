@@ -46,12 +46,12 @@ async function seedFixtures(client: Client): Promise<void> {
     args: [MATCH_ID, TOURNAMENT_ID, HOME_TEAM, AWAY_TEAM, "2026-06-15T18:00:00Z", "finished", now],
   });
   await client.execute({
-    sql: `INSERT INTO "user"(id, email, name, created_at) VALUES (?, ?, ?, ?)`,
-    args: [USER_ID_1, "user1@test.com", "User One", now],
+    sql: `INSERT INTO "user"(id, name, email, emailVerified, image, createdAt, updatedAt) VALUES (?, ?, ?, 0, NULL, ?, ?)`,
+    args: [USER_ID_1, "User One", "user1@test.com", now, now],
   });
   await client.execute({
-    sql: `INSERT INTO "user"(id, email, name, created_at) VALUES (?, ?, ?, ?)`,
-    args: [USER_ID_2, "user2@test.com", "User Two", now],
+    sql: `INSERT INTO "user"(id, name, email, emailVerified, image, createdAt, updatedAt) VALUES (?, ?, ?, 0, NULL, ?, ?)`,
+    args: [USER_ID_2, "User Two", "user2@test.com", now, now],
   });
   await client.execute({
     sql: `INSERT INTO "group"(id, name, owner_id, created_at) VALUES (?, ?, ?, ?)`,

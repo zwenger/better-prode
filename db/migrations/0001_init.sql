@@ -32,13 +32,17 @@ CREATE TABLE match (
 CREATE INDEX idx_match_kickoff ON match(kickoff_utc);
 CREATE INDEX idx_match_status ON match(status);
 
+-- Better Auth canonical user table — camelCase columns match the Kysely SQLite adapter.
+-- Required columns per Better Auth docs: id, name (NOT NULL), email (UNIQUE NOT NULL),
+-- emailVerified (boolean as INTEGER), image, createdAt, updatedAt.
 CREATE TABLE "user" (
   id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
-  name TEXT,
+  emailVerified INTEGER NOT NULL DEFAULT 0,
   image TEXT,
-  created_at TEXT NOT NULL
-  -- Better Auth manages its own session/account tables
+  createdAt TEXT NOT NULL,
+  updatedAt TEXT NOT NULL
 );
 
 CREATE TABLE prediction (

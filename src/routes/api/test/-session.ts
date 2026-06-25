@@ -75,11 +75,12 @@ export async function handleTestSession(request: Request): Promise<Response> {
   const now = new Date().toISOString();
 
   // Upsert test user into our user table so Better Auth can create a session.
+  // Column names use camelCase to match Better Auth's Kysely SQLite adapter schema.
   await db.execute({
-    sql: `INSERT INTO "user"(id, email, name, created_at)
-          VALUES (?, ?, ?, ?)
-          ON CONFLICT(id) DO UPDATE SET email = excluded.email, name = excluded.name`,
-    args: [body.userId, body.email, body.name, now],
+    sql: `INSERT INTO "user"(id, name, email, emailVerified, image, createdAt, updatedAt)
+          VALUES (?, ?, ?, 0, NULL, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET email = excluded.email, name = excluded.name, updatedAt = excluded.updatedAt`,
+    args: [body.userId, body.name, body.email, now, now],
   });
 
   // Use testAuth (which includes testUtils plugin) to create a real session.
