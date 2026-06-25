@@ -50,8 +50,9 @@ export default defineConfig({
   // as a known issue with rolldown + @tanstack/start-server-core package imports.
   // Preview uses the already-built output without dep-opt and is fully functional.
   //
-  // scripts/e2e-server.sh writes .dev.vars so Miniflare picks up E2E env vars,
-  // builds the app, then starts vite preview on port 4173.
+  // scripts/e2e-server.sh builds the app, writes E2E env vars to
+  // dist/server/.dev.vars (never the root .dev.vars), and starts vite preview
+  // on port 4173 so Miniflare picks up the E2E config.
   webServer: {
     command: "bash scripts/e2e-server.sh",
     url: "http://localhost:4173",
