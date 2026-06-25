@@ -41,35 +41,18 @@ export class LibSqlPredictionRepository implements PredictionRepository {
     prediction: Omit<PredictionRecord, "id" | "points"> & { id?: string }
   ): Promise<PredictionRecord> {
     const now = new Date().toISOString();
-
-    // Try to find existing prediction for (user, match)
-    const existing = await this.db.execute({
-      sql: `SELECT id FROM prediction WHERE user_id = ? AND match_id = ?`,
-      args: [prediction.userId, prediction.matchId],
-    });
-
-    if (existing.rows.length > 0) {
-      // Update existing
-      const id = existing.rows[0]["id"] as string;
-      await this.db.execute({
-        sql: `UPDATE prediction SET home_goals = ?, away_goals = ?, updated_at = ? WHERE id = ?`,
-        args: [prediction.homeGoals, prediction.awayGoals, now, id],
-      });
-      return {
-        id,
-        userId: prediction.userId,
-        matchId: prediction.matchId,
-        homeGoals: prediction.homeGoals,
-        awayGoals: prediction.awayGoals,
-        points: null,
-      };
-    }
-
-    // Insert new
     const id = prediction.id ?? randomUUID();
+
+    // W3 fix: atomic upsert — INSERT ... ON CONFLICT(user_id, match_id) DO UPDATE
+    // replaces the non-atomic SELECT-then-INSERT/UPDATE pattern which races under
+    // concurrent submissions for the same (user, match).
     await this.db.execute({
       sql: `INSERT INTO prediction(id, user_id, match_id, home_goals, away_goals, points, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`,
+            VALUES (?, ?, ?, ?, ?, NULL, ?, ?)
+            ON CONFLICT(user_id, match_id)
+            DO UPDATE SET home_goals = excluded.home_goals,
+                          away_goals = excluded.away_goals,
+                          updated_at = excluded.updated_at`,
       args: [
         id,
         prediction.userId,
@@ -81,8 +64,16 @@ export class LibSqlPredictionRepository implements PredictionRepository {
       ],
     });
 
+    // Fetch the persisted row to return the canonical id (may differ from
+    // our generated id if a conflict occurred and the original row was kept).
+    const existing = await this.db.execute({
+      sql: `SELECT id FROM prediction WHERE user_id = ? AND match_id = ?`,
+      args: [prediction.userId, prediction.matchId],
+    });
+    const persistedId = (existing.rows[0]?.["id"] ?? id) as string;
+
     return {
-      id,
+      id: persistedId,
       userId: prediction.userId,
       matchId: prediction.matchId,
       homeGoals: prediction.homeGoals,

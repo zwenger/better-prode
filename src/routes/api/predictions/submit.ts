@@ -37,12 +37,12 @@ export interface SubmitPredictionOutput {
 export const submitPrediction = createServerFn({ method: "POST" })
   .validator((data: unknown): SubmitPredictionInput => {
     // W2: reject invalid goal values with HTTP 400 before touching the DB.
-    const input = data as SubmitPredictionInput;
-    const goalsError = validateGoals(input?.homeGoals, input?.awayGoals);
+    const raw = data as Record<string, unknown>;
+    const goalsError = validateGoals(raw["homeGoals"], raw["awayGoals"]);
     if (goalsError) {
       throw Object.assign(new Error(goalsError), { status: 400 });
     }
-    return input;
+    return data as SubmitPredictionInput;
   })
   .handler(async ({ data }): Promise<SubmitPredictionOutput> => {
     const request = getRequest();
