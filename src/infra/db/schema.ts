@@ -48,6 +48,8 @@ export const match = sqliteTable(
     awayScore: integer("away_score"),
     resultSource: text("result_source", { enum: ["auto", "manual"] }),
     settledAt: text("settled_at"),
+    groupLabel: text("group_label"),
+    stageId: text("stage_id"),
     createdAt: text("created_at").notNull(),
   },
   (t) => [
