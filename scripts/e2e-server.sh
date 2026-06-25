@@ -26,8 +26,13 @@ TURSO_PID_FILE="/tmp/turso-e2e-$$.pid"
 rm -f e2e.db
 
 echo "[e2e-server] Initializing e2e.db with migrations and seed..."
-sqlite3 e2e.db < db/migrations/0001_init.sql
-sqlite3 e2e.db < db/migrations/0002_better_auth_tables.sql
+# Apply ALL migrations in sorted order (do not hardcode files — new migrations
+# like 0003 must be picked up automatically, else the E2E schema drifts from the
+# Drizzle schema and `.select()` queries fail on missing columns).
+for f in db/migrations/*.sql; do
+  echo "[e2e-server]   applying $f"
+  sqlite3 e2e.db < "$f"
+done
 sqlite3 e2e.db < db/seeds/e2e-fixture.sql
 echo "[e2e-server] e2e.db initialized"
 
