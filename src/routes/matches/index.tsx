@@ -15,6 +15,8 @@ import { useState } from "react";
 import { getDbClient } from "#/infra/db/client";
 import { getRequest } from "@tanstack/start-server-core";
 import { auth } from "#/infra/auth/auth";
+import { SystemClock } from "#/domain/ports/clock";
+import { isLocked } from "#/domain/lock";
 import { submitPrediction } from "#/routes/api/predictions/submit";
 
 interface MatchListItem {
@@ -37,7 +39,9 @@ const getMatches = createServerFn({ method: "GET" }).handler(
     const session = await auth.api.getSession({ headers: request.headers });
     const db = getDbClient();
 
-    const lockOffsetMs = 5 * 60 * 1000;
+    // W4: use injectable Clock port instead of Date.now() directly.
+    // SystemClock in production; FakeClock in tests (deterministic).
+    const clock = new SystemClock();
 
     const result = await db.execute({
       sql: `SELECT id, home_team_id, away_team_id, kickoff_utc, status
@@ -49,8 +53,7 @@ const getMatches = createServerFn({ method: "GET" }).handler(
 
     const matches: MatchListItem[] = result.rows.map((row) => {
       const kickoff = row["kickoff_utc"] as string;
-      const kickoffMs = new Date(kickoff).getTime();
-      const locked = Date.now() >= kickoffMs - lockOffsetMs;
+      const locked = isLocked(kickoff, clock);
       return {
         id: row["id"] as string,
         homeTeamId: row["home_team_id"] as string,
