@@ -1,0 +1,58 @@
+{
+  "IdMatch": "400021473",
+  "IdCompetition": "17",
+  "IdSeason": "285023",
+  "IdStage": "289273",
+  "IdGroup": "289280",
+  "Date": "2026-06-25T23:00:00Z",
+  "MatchStatus": 1,
+  "MatchTime": "0'",
+  "GroupName": [
+    {
+      "Locale": "en-GB",
+      "Description": "Group F"
+    }
+  ],
+  "StageName": [
+    {
+      "Locale": "en-GB",
+      "Description": "First Stage"
+    }
+  ],
+  "CompetitionName": [
+    {
+      "Locale": "en-GB",
+      "Description": "FIFA World Cup™"
+    }
+  ],
+  "SeasonName": [
+    {
+      "Locale": "en-GB",
+      "Description": "FIFA World Cup 2026™"
+    }
+  ],
+  "Home": {
+    "IdTeam": "43888",
+    "IdCountry": "TUN",
+    "TeamName": [
+      {
+        "Locale": "en-GB",
+        "Description": "Tunisia"
+      }
+    ],
+    "Abbreviation": "TUN",
+    "Score": null
+  },
+  "Away": {
+    "IdTeam": "43960",
+    "IdCountry": "NED",
+    "TeamName": [
+      {
+        "Locale": "en-GB",
+        "Description": "Netherlands"
+      }
+    ],
+    "Abbreviation": "NED",
+    "Score": null
+  }
+}
