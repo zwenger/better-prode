@@ -11,11 +11,7 @@
 
 import { eq, sql } from "drizzle-orm";
 import type { DrizzleDb } from "#/infra/db/client";
-import {
-  prediction as predictionTable,
-  match as matchTable,
-  groupMembership,
-} from "#/infra/db/schema";
+import { prediction as predictionTable } from "#/infra/db/schema";
 import type {
   PredictionRepository,
   PredictionRecord,

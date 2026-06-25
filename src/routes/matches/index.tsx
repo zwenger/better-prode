@@ -12,7 +12,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { getDbClient } from "#/infra/db/client";
+import { asc } from "drizzle-orm";
+import { getDb } from "#/infra/db/client";
+import { match as matchTable } from "#/infra/db/schema";
 import { getRequest } from "@tanstack/start-server-core";
 import { auth } from "#/infra/auth/auth";
 import { SystemClock } from "#/domain/ports/clock";
@@ -37,29 +39,32 @@ const getMatches = createServerFn({ method: "GET" }).handler(
   async (): Promise<LoaderData> => {
     const request = getRequest();
     const session = await auth.api.getSession({ headers: request.headers });
-    const db = getDbClient();
+    const db = getDb();
 
     // W4: use injectable Clock port instead of Date.now() directly.
     // SystemClock in production; FakeClock in tests (deterministic).
     const clock = new SystemClock();
 
-    const result = await db.execute({
-      sql: `SELECT id, home_team_id, away_team_id, kickoff_utc, status
-            FROM match
-            ORDER BY kickoff_utc ASC
-            LIMIT 20`,
-      args: [],
-    });
+    const rows = await db
+      .select({
+        id: matchTable.id,
+        homeTeamId: matchTable.homeTeamId,
+        awayTeamId: matchTable.awayTeamId,
+        kickoffUtc: matchTable.kickoffUtc,
+        status: matchTable.status,
+      })
+      .from(matchTable)
+      .orderBy(asc(matchTable.kickoffUtc))
+      .limit(20);
 
-    const matches: MatchListItem[] = result.rows.map((row) => {
-      const kickoff = row["kickoff_utc"] as string;
-      const locked = isLocked(kickoff, clock);
+    const matches: MatchListItem[] = rows.map((row) => {
+      const locked = isLocked(row.kickoffUtc, clock);
       return {
-        id: row["id"] as string,
-        homeTeamId: row["home_team_id"] as string,
-        awayTeamId: row["away_team_id"] as string,
-        kickoffUtc: kickoff,
-        status: row["status"] as string,
+        id: row.id,
+        homeTeamId: row.homeTeamId,
+        awayTeamId: row.awayTeamId,
+        kickoffUtc: row.kickoffUtc,
+        status: row.status,
         locked,
       };
     });

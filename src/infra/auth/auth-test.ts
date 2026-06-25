@@ -9,18 +9,24 @@
 
 import { betterAuth } from "better-auth";
 import { testUtils } from "better-auth/plugins";
-import { Kysely } from "kysely";
-import { createDbClient } from "#/infra/db/client";
-import { LibsqlDialect } from "#/infra/db/kysely-libsql-dialect";
-
-const dbClient = createDbClient();
-const kyselyDb = new Kysely({ dialect: new LibsqlDialect({ client: dbClient }) });
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { getDb } from "#/infra/db/client";
+import * as schema from "#/infra/db/schema";
 
 export const testAuth = betterAuth({
   secret: process.env["BETTER_AUTH_SECRET"],
   // Keep baseURL consistent with the production auth instance.
   baseURL: process.env["BETTER_AUTH_URL"],
-  database: { db: kyselyDb, type: "sqlite" as const },
+  database: drizzleAdapter(getDb(), {
+    provider: "sqlite",
+    schema: {
+      user: schema.user,
+      session: schema.session,
+      account: schema.account,
+      verification: schema.verification,
+    },
+    camelCase: true,
+  }),
   socialProviders: {
     google: {
       clientId: process.env["GOOGLE_CLIENT_ID"] ?? "",

@@ -20,7 +20,8 @@
  * Spec (testability): test auth bypass for Playwright E2E.
  */
 
-import { getDbClient } from "#/infra/db/client";
+import { sql } from "drizzle-orm";
+import { getDb } from "#/infra/db/client";
 import { testAuth } from "#/infra/auth/auth-test";
 
 export interface TestSessionInput {
@@ -71,17 +72,16 @@ export async function handleTestSession(request: Request): Promise<Response> {
     );
   }
 
-  const db = getDbClient();
+  const db = getDb();
   const now = new Date().toISOString();
 
   // Upsert test user into our user table so Better Auth can create a session.
-  // Column names use camelCase to match Better Auth's Kysely SQLite adapter schema.
-  await db.execute({
-    sql: `INSERT INTO "user"(id, name, email, emailVerified, image, createdAt, updatedAt)
-          VALUES (?, ?, ?, 0, NULL, ?, ?)
-          ON CONFLICT(id) DO UPDATE SET email = excluded.email, name = excluded.name, updatedAt = excluded.updatedAt`,
-    args: [body.userId, body.name, body.email, now, now],
-  });
+  // Column names use camelCase to match the live schema in 0001_init.sql.
+  await db.run(sql`
+    INSERT INTO "user"(id, name, email, emailVerified, image, createdAt, updatedAt)
+    VALUES (${body.userId}, ${body.name}, ${body.email}, 0, NULL, ${now}, ${now})
+    ON CONFLICT(id) DO UPDATE SET email = excluded.email, name = excluded.name, updatedAt = excluded.updatedAt
+  `);
 
   // Use testAuth (which includes testUtils plugin) to create a real session.
   // test.login() calls internalAdapter.createSession() and returns:
