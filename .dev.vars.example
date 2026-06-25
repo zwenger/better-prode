@@ -45,6 +45,11 @@ GOOGLE_CLIENT_SECRET=
 # Generate with: openssl rand -base64 32
 BETTER_AUTH_SECRET=REPLACE_WITH_GENERATED_SECRET
 
+# Better Auth base URL — used for OAuth callbacks and redirects.
+# Local dev: http://localhost:3000
+# Production: your deployed Workers origin, e.g. https://better-prode.workers.dev
+BETTER_AUTH_URL=http://localhost:3000
+
 
 # -----------------------------------------------------------------------------
 # Football data provider (ResultSource adapter — deploy dependency)

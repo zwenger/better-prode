@@ -23,6 +23,10 @@ const kyselyDb = new Kysely({ dialect: new LibsqlDialect({ client: dbClient }) }
 
 export const auth = betterAuth({
   secret: process.env["BETTER_AUTH_SECRET"],
+  // baseURL is required for OAuth callbacks and redirects to work correctly.
+  // Set BETTER_AUTH_URL=http://localhost:3000 in .dev.vars for local dev,
+  // and to your deployed Workers origin in production.
+  baseURL: process.env["BETTER_AUTH_URL"],
 
   database: { db: kyselyDb, type: "sqlite" as const },
   socialProviders: {

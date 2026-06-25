@@ -18,6 +18,8 @@ const kyselyDb = new Kysely({ dialect: new LibsqlDialect({ client: dbClient }) }
 
 export const testAuth = betterAuth({
   secret: process.env["BETTER_AUTH_SECRET"],
+  // Keep baseURL consistent with the production auth instance.
+  baseURL: process.env["BETTER_AUTH_URL"],
   database: { db: kyselyDb, type: "sqlite" as const },
   socialProviders: {
     google: {
