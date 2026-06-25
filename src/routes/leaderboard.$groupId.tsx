@@ -6,12 +6,17 @@
  *
  * Spec (leaderboard): SUM aggregation at read time (scoring never re-invoked).
  * Design: leaderboard caching lands in PR 4.
+ *
+ * W5: Requires authenticated session AND group membership before returning data.
  */
 
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/start-server-core";
+import { auth } from "#/infra/auth/auth";
 import { getDbClient } from "#/infra/db/client";
 import { LibSqlPredictionRepository } from "#/adapters/db/prediction-repository";
+import { checkLeaderboardAccess } from "#/domain/leaderboard-access";
 
 interface LeaderboardEntry {
   userId: string;
@@ -33,7 +38,30 @@ interface LeaderboardInput {
 const getLeaderboardData = createServerFn({ method: "GET", strict: false })
   .validator((data: unknown): LeaderboardInput => data as LeaderboardInput)
   .handler(async ({ data }): Promise<LoaderData> => {
+    const request = getRequest();
+    const session = await auth.api.getSession({ headers: request.headers });
+
+    // W5: check authentication and group membership before returning data
     const db = getDbClient();
+
+    const accessError = await checkLeaderboardAccess(
+      session?.user?.id,
+      data.groupId,
+      async (userId, groupId) => {
+        const result = await db.execute({
+          sql: `SELECT 1 FROM group_membership WHERE group_id = ? AND user_id = ? LIMIT 1`,
+          args: [groupId, userId],
+        });
+        return result.rows.length > 0;
+      }
+    );
+
+    if (accessError) {
+      throw Object.assign(new Error(accessError), {
+        status: accessError === "Unauthorized" ? 401 : 403,
+      });
+    }
+
     const predRepo = new LibSqlPredictionRepository(db);
 
     // Default to WC 2026 tournament in tracer bullet; PR 4 will parameterize
