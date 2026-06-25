@@ -17,6 +17,7 @@ import { auth } from "#/infra/auth/auth";
 import { getDbClient } from "#/infra/db/client";
 import { SystemClock } from "#/domain/ports/clock";
 import { isLocked } from "#/domain/lock";
+import { validateGoals } from "#/domain/validate-goals";
 import { LibSqlMatchRepository } from "#/adapters/db/match-repository";
 import { LibSqlPredictionRepository } from "#/adapters/db/prediction-repository";
 
@@ -34,7 +35,15 @@ export interface SubmitPredictionOutput {
 }
 
 export const submitPrediction = createServerFn({ method: "POST" })
-  .validator((data: unknown) => data as SubmitPredictionInput)
+  .validator((data: unknown): SubmitPredictionInput => {
+    // W2: reject invalid goal values with HTTP 400 before touching the DB.
+    const input = data as SubmitPredictionInput;
+    const goalsError = validateGoals(input?.homeGoals, input?.awayGoals);
+    if (goalsError) {
+      throw Object.assign(new Error(goalsError), { status: 400 });
+    }
+    return input;
+  })
   .handler(async ({ data }): Promise<SubmitPredictionOutput> => {
     const request = getRequest();
     const session = await auth.api.getSession({ headers: request.headers });
@@ -54,7 +63,8 @@ export const submitPrediction = createServerFn({ method: "POST" })
 
     const clock = new SystemClock();
     if (isLocked(match.kickoffUtc, clock)) {
-      return { success: false, locked: true, predictionId: "", error: "match_locked" };
+      // S2: return HTTP 422 with reason match_locked per spec (not 200)
+      throw Object.assign(new Error("match_locked"), { status: 422 });
     }
 
     const prediction = await predRepo.upsert({
