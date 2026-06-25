@@ -1,15 +1,23 @@
-import { createAPIFileRoute } from "@tanstack/react-start/api";
+import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/start-server-core";
 import { auth } from "#/infra/auth/auth";
 
 /**
- * Better Auth catch-all route.
- * Handles all auth endpoints: /api/auth/*, including:
- *   GET  /api/auth/callback/google
- *   POST /api/auth/sign-in/social
- *   POST /api/auth/sign-out
- *   GET  /api/auth/get-session
+ * Better Auth catch-all handler.
+ *
+ * These server functions proxy /api/auth/* requests to Better Auth.
+ * Handles: /api/auth/callback/google, sign-in, sign-out, get-session
  */
-export const APIRoute = createAPIFileRoute("/api/auth/$")({
-  GET: ({ request }) => auth.handler(request),
-  POST: ({ request }) => auth.handler(request),
-});
+export const handleAuthGet = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const request = getRequest();
+    return auth.handler(request);
+  }
+);
+
+export const handleAuthPost = createServerFn({ method: "POST" }).handler(
+  async () => {
+    const request = getRequest();
+    return auth.handler(request);
+  }
+);

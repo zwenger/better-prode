@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth";
-import { getDbClient } from "#/infra/db/client";
+import { createDbClient } from "#/infra/db/client";
 
 /**
  * Better Auth configuration — Google OAuth provider.
@@ -10,17 +10,16 @@ import { getDbClient } from "#/infra/db/client";
  *   GOOGLE_CLIENT_SECRET    — from Google Cloud Console OAuth 2.0 credentials
  *
  * OAuth callback URL: /api/auth/callback/google
- * (registered in Google Cloud Console as an authorized redirect URI)
+ * (register this in Google Cloud Console as an authorized redirect URI)
+ *
+ * Better Auth auto-creates its own session/account tables alongside ours.
+ * It uses Kysely's SqliteDatabase dialect under the hood — the @libsql/client
+ * is compatible with the Kysely SQLite interface Better Auth expects.
  */
 export const auth = betterAuth({
   secret: process.env["BETTER_AUTH_SECRET"],
-  database: {
-    // Better Auth will use its own session/account tables alongside ours.
-    // It receives the same libSQL client.
-    // @ts-expect-error — Better Auth accepts libSQL client but types may lag
-    db: getDbClient(),
-    type: "sqlite",
-  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  database: createDbClient() as any,
   socialProviders: {
     google: {
       clientId: process.env["GOOGLE_CLIENT_ID"] ?? "",
