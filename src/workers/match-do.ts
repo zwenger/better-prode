@@ -46,6 +46,25 @@ export class MatchDO implements DurableObject {
 
   private state: DurableObjectState;
 
+  /**
+   * W1 fix: in-memory Promise chain serializes all handleSettle calls.
+   *
+   * Cloudflare DOs are single-threaded, but async handlers can interleave
+   * at every `await` point. Two requests arriving simultaneously both start
+   * their fetch() handler; at `await request.json()`, the event loop can
+   * switch to the second handler. By the time both reach the storage read,
+   * both see `stored = undefined` and both write settleCount=1 — double-apply.
+   *
+   * blockConcurrencyWhile() queues NEW requests but does not help when both
+   * handlers have already started (past their first await).
+   *
+   * Solution: a Promise-chain mutex. Each call to handleSettle() chains onto
+   * the previous one via _settleMutex. Requests are therefore serialized in
+   * the order they acquire the mutex, regardless of how many concurrent fetches
+   * were in-flight before they called chain().
+   */
+  private _settleMutex: Promise<void> = Promise.resolve();
+
   constructor(state: DurableObjectState, _env: Env) {
     this.state = state;
   }
@@ -61,8 +80,28 @@ export class MatchDO implements DurableObject {
   }
 
   private async handleSettle(request: Request): Promise<Response> {
+    // Parse the request body BEFORE acquiring the mutex (body can only be read once
+    // and the stream must be consumed before the handler returns).
     const command: SettleCommand = await request.json();
 
+    // Acquire the mutex: chain this settle onto the previous one.
+    // Any subsequent call that arrives while we are executing will queue behind us.
+    let releaseResolve!: () => void;
+    const holdLock = new Promise<void>((resolve) => { releaseResolve = resolve; });
+    const waitForPrev = this._settleMutex;
+    this._settleMutex = holdLock;
+
+    // Wait for the previous operation to finish before proceeding.
+    await waitForPrev;
+
+    try {
+      return await this._doSettle(command);
+    } finally {
+      releaseResolve();
+    }
+  }
+
+  private async _doSettle(command: SettleCommand): Promise<Response> {
     // Read current state from durable storage
     const stored = await this.state.storage.get<{
       homeScore: number;
@@ -100,6 +139,21 @@ export class MatchDO implements DurableObject {
       return Response.json(result);
     }
 
+    // Single-flight guard: once ANY auto result is stored, subsequent auto calls
+    // with different scores are no-ops (first-writer-wins for auto).
+    // This prevents double-apply under concurrent settlement attempts.
+    // Only a manual override can replace an existing auto result.
+    if (stored !== undefined && stored.resultSource === "auto" && command.source === "auto") {
+      const result: SettleResult = {
+        settled: true,
+        settleCount: stored.settleCount,
+        homeScore: stored.homeScore,
+        awayScore: stored.awayScore,
+        resultSource: stored.resultSource,
+      };
+      return Response.json(result);
+    }
+
     // Settle: persist result
     const settleCount = (stored?.settleCount ?? 0) + 1;
     const newResult = {
@@ -109,8 +163,6 @@ export class MatchDO implements DurableObject {
       settleCount,
     };
 
-    // blockConcurrencyWhile ensures this write is atomic and no concurrent
-    // request can read stale state during our write
     await this.state.storage.put("result", newResult);
 
     const result: SettleResult = {
