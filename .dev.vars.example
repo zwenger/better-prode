@@ -52,6 +52,17 @@ BETTER_AUTH_URL=http://localhost:3000
 
 
 # -----------------------------------------------------------------------------
+# Admin access
+# -----------------------------------------------------------------------------
+
+# Comma-separated user IDs allowed to settle match results (the admin
+# apply-result endpoint). Empty = no admins (fail-closed — the endpoint is
+# effectively disabled). After your first login, set this to your own user id.
+# Example: ADMIN_USER_IDS=user_abc123,user_def456
+ADMIN_USER_IDS=
+
+
+# -----------------------------------------------------------------------------
 # Football data provider (ResultSource adapter — deploy dependency)
 # -----------------------------------------------------------------------------
 
