@@ -10,33 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MatchesIndexRouteImport } from './routes/matches/index'
+import { Route as LeaderboardGroupIdRouteImport } from './routes/leaderboard.$groupId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MatchesIndexRoute = MatchesIndexRouteImport.update({
+  id: '/matches/',
+  path: '/matches/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeaderboardGroupIdRoute = LeaderboardGroupIdRouteImport.update({
+  id: '/leaderboard/$groupId',
+  path: '/leaderboard/$groupId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/leaderboard/$groupId': typeof LeaderboardGroupIdRoute
+  '/matches/': typeof MatchesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/leaderboard/$groupId': typeof LeaderboardGroupIdRoute
+  '/matches': typeof MatchesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/leaderboard/$groupId': typeof LeaderboardGroupIdRoute
+  '/matches/': typeof MatchesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/leaderboard/$groupId' | '/matches/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/leaderboard/$groupId' | '/matches'
+  id: '__root__' | '/' | '/leaderboard/$groupId' | '/matches/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LeaderboardGroupIdRoute: typeof LeaderboardGroupIdRoute
+  MatchesIndexRoute: typeof MatchesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,21 +68,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/matches/': {
+      id: '/matches/'
+      path: '/matches'
+      fullPath: '/matches/'
+      preLoaderRoute: typeof MatchesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leaderboard/$groupId': {
+      id: '/leaderboard/$groupId'
+      path: '/leaderboard/$groupId'
+      fullPath: '/leaderboard/$groupId'
+      preLoaderRoute: typeof LeaderboardGroupIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LeaderboardGroupIdRoute: LeaderboardGroupIdRoute,
+  MatchesIndexRoute: MatchesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
