@@ -43,7 +43,7 @@ import {
 const TEST_AUTH_ENABLED = import.meta.env.VITE_TEST_AUTH_ENABLED === "true";
 
 const handleTestSession = TEST_AUTH_ENABLED
-  ? (await import("./routes/api/test/session")).handleTestSession
+  ? (await import("./routes/api/test/-session")).handleTestSession
   : null;
 
 export default createServerEntry({

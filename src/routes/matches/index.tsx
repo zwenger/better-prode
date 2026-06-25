@@ -17,7 +17,7 @@ import { getRequest } from "@tanstack/start-server-core";
 import { auth } from "#/infra/auth/auth";
 import { SystemClock } from "#/domain/ports/clock";
 import { isLocked } from "#/domain/lock";
-import { submitPrediction } from "#/routes/api/predictions/submit";
+import { submitPrediction } from "#/routes/api/predictions/-submit";
 
 interface MatchListItem {
   id: string;
