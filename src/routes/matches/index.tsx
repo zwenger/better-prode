@@ -61,7 +61,7 @@ const getMatches = createServerFn({ method: "GET" }).handler(
       };
     });
 
-    return { matches, userId: session?.user?.id ?? null };
+    return { matches, userId: session?.user.id ?? null };
   }
 );
 

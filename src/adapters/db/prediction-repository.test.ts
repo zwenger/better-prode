@@ -136,7 +136,7 @@ describe("LibSqlPredictionRepository", () => {
     await repo.updatePoints(pred.id, 7);
 
     const [updated] = await repo.listByMatch(MATCH_ID);
-    expect(updated!.points).toBe(7);
+    expect(updated.points).toBe(7);
   });
 
   it("leaderboard SUM: sum of points per user in a group for a tournament", async () => {

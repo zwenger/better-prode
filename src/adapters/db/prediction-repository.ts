@@ -50,7 +50,7 @@ export class LibSqlPredictionRepository implements PredictionRepository {
 
     if (existing.rows.length > 0) {
       // Update existing
-      const id = existing.rows[0]!["id"] as string;
+      const id = existing.rows[0]["id"] as string;
       await this.db.execute({
         sql: `UPDATE prediction SET home_goals = ?, away_goals = ?, updated_at = ? WHERE id = ?`,
         args: [prediction.homeGoals, prediction.awayGoals, now, id],

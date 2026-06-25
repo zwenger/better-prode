@@ -14,15 +14,6 @@ import { score } from "./scoring";
  * Never returned:    2, 5, 6
  */
 
-interface Prediction {
-  homeGoals: number;
-  awayGoals: number;
-}
-interface Result {
-  homeGoals: number;
-  awayGoals: number;
-}
-
 describe("score(pred, result)", () => {
   // Pleno: exact score on both sides → 7 (rule 1 is flat, not additive)
   it("pleno — exact home and away goals → 7", () => {

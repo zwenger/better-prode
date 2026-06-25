@@ -28,6 +28,12 @@ export const TEST_USER: TestUser = {
   name: "E2E Test User",
 };
 
+export const ADMIN_USER: TestUser = {
+  id: "test-admin-e2e-seed",
+  email: "admin@better-prode.test",
+  name: "E2E Admin User",
+};
+
 /**
  * Injects a session cookie for the given test user into the browser context.
  * The actual session minting logic lives server-side at /api/test/session.
@@ -42,32 +48,65 @@ export async function seedUserAndInjectSession(
   user: TestUser = TEST_USER
 ): Promise<{ user: TestUser }> {
   const baseURL =
-    process.env["PLAYWRIGHT_BASE_URL"] ?? "http://localhost:3000";
+    process.env["PLAYWRIGHT_BASE_URL"] ?? "http://localhost:4173";
 
-  // Ask the server to mint a session for this test user
-  const response = await page.request.post(
-    `${baseURL}/api/test/session`,
-    {
-      data: { userId: user.id, email: user.email, name: user.name },
-    }
-  );
+  // Ask the server to mint a session for this test user.
+  // The server upserts the user in the DB and returns a session token
+  // plus the Set-Cookie header to inject into the browser.
+  const response = await page.request.post(`${baseURL}/api/test/session`, {
+    data: { userId: user.id, email: user.email, name: user.name },
+  });
 
   if (!response.ok()) {
+    const body = await response.text().catch(() => "(unreadable)");
     throw new Error(
-      `Auth bypass failed: POST /api/test/session returned ${response.status()}. ` +
+      `Auth bypass failed: POST /api/test/session returned ${response.status()}.\n` +
+        `Body: ${body}\n` +
         "Ensure TEST_AUTH_BYPASS=true is set in the server's environment."
     );
   }
 
-  // The server sets a Set-Cookie header — Playwright picks it up automatically
-  // via the page request context. We also reflect it into the browser context.
-  const cookies = await context.cookies();
-  if (!cookies.some((c) => c.name === "better-auth.session_token")) {
-    // If the cookie wasn't set automatically, something is wrong
-    console.warn(
-      "Auth bypass: session cookie was not set automatically. " +
-        "Check the /api/test/session implementation."
-    );
+  const data = await response.json();
+
+  // If the server returned a Set-Cookie header, inject it into the browser context.
+  if (data.setCookieHeader) {
+    // Parse the Set-Cookie header to extract name, value, and attributes.
+    const [nameValue, ...attributes] = data.setCookieHeader.split(";");
+    const eqIdx = nameValue.indexOf("=");
+    const cookieName = nameValue.slice(0, eqIdx).trim();
+    const cookieValue = nameValue.slice(eqIdx + 1).trim();
+
+    // Build the domain from baseURL (localhost for local dev).
+    const url = new URL(baseURL);
+    const domain = url.hostname;
+
+    // Parse attributes into a cookie object for Playwright.
+    const attrMap: Record<string, string> = {};
+    for (const attr of attributes) {
+      const [k, v] = attr.split("=").map((s: string) => s.trim());
+      attrMap[k.toLowerCase()] = v ?? "true";
+    }
+
+    await context.addCookies([
+      {
+        name: cookieName,
+        value: cookieValue,
+        domain,
+        path: attrMap["path"] ?? "/",
+        httpOnly: "httponly" in attrMap,
+        secure: "secure" in attrMap,
+        sameSite: (attrMap["samesite"] as ("Lax" | "Strict" | "None") | undefined) ?? "Lax",
+      },
+    ]);
+  } else {
+    // Fallback: check if the cookie was set automatically via the request context.
+    const cookies = await context.cookies();
+    if (!cookies.some((c) => c.name === "better-auth.session_token")) {
+      console.warn(
+        "Auth bypass: session cookie was not set automatically. " +
+          "Check the /api/test/session implementation."
+      );
+    }
   }
 
   return { user };

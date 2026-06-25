@@ -1,5 +1,7 @@
 import { betterAuth } from "better-auth";
+import { Kysely } from "kysely";
 import { createDbClient } from "#/infra/db/client";
+import { LibsqlDialect } from "#/infra/db/kysely-libsql-dialect";
 
 /**
  * Better Auth configuration — Google OAuth provider.
@@ -16,10 +18,13 @@ import { createDbClient } from "#/infra/db/client";
  * It uses Kysely's SqliteDatabase dialect under the hood — the @libsql/client
  * is compatible with the Kysely SQLite interface Better Auth expects.
  */
+const dbClient = createDbClient();
+const kyselyDb = new Kysely({ dialect: new LibsqlDialect({ client: dbClient }) });
+
 export const auth = betterAuth({
   secret: process.env["BETTER_AUTH_SECRET"],
-   
-  database: createDbClient() as any,
+
+  database: { db: kyselyDb, type: "sqlite" as const },
   socialProviders: {
     google: {
       clientId: process.env["GOOGLE_CLIENT_ID"] ?? "",

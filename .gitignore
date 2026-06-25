@@ -30,6 +30,11 @@ coverage
 playwright-report
 test-results
 
+# E2E database (created at test time by e2e-server.sh)
+e2e.db
+e2e.db-shm
+e2e.db-wal
+
 # TypeScript
 *.tsbuildinfo
 *.local

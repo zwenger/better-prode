@@ -25,7 +25,7 @@ export class LibSqlMatchRepository implements MatchRepository {
 
     if (result.rows.length === 0) return null;
 
-    const row = result.rows[0]!;
+    const row = result.rows[0];
     return this.rowToRecord(row);
   }
 
