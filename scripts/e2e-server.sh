@@ -41,27 +41,24 @@ echo "[e2e-server] Started turso dev on port $TURSO_PORT (pid: $TURSO_PID)"
 # Give turso dev a moment to start
 sleep 2
 
-# Write .dev.vars so Miniflare (vite preview) picks up E2E config.
-# TURSO_DATABASE_URL points to the local turso dev server.
-cat > .dev.vars << EOF
+# Build with e2e mode: VITE_TEST_AUTH_ENABLED=true so the test-auth bypass
+# is included in this bundle (needed for Playwright auth injection).
+# Production builds use `npm run build` which omits the bypass entirely.
+npm run build:e2e
+
+# Write E2E env vars directly to dist/server/.dev.vars.
+# Miniflare (vite preview / @cloudflare/vite-plugin) reads secrets from there.
+# We do NOT write or touch the root .dev.vars — that file holds real production
+# secrets and must never be clobbered by test tooling.
+mkdir -p dist/server
+cat > dist/server/.dev.vars << EOF
 TURSO_DATABASE_URL=http://127.0.0.1:${TURSO_PORT}
 BETTER_AUTH_SECRET=test-secret-for-e2e-tests-only
 TEST_AUTH_BYPASS=true
 ADMIN_USER_IDS=test-admin-e2e-seed
 EOF
 
-echo "[e2e-server] .dev.vars written for E2E run"
-
-# Build with e2e mode: VITE_TEST_AUTH_ENABLED=true so the test-auth bypass
-# is included in this bundle (needed for Playwright auth injection).
-# Production builds use `npm run build` which omits the bypass entirely.
-npm run build:e2e
-
-# Miniflare (vite preview / @cloudflare/vite-plugin) reads secrets from
-# dist/server/.dev.vars. The vite build already copies .dev.vars there,
-# but copy explicitly in case build uses a cached output.
-cp .dev.vars dist/server/.dev.vars
-echo "[e2e-server] .dev.vars copied to dist/server/.dev.vars for Miniflare"
+echo "[e2e-server] dist/server/.dev.vars written for E2E run (root .dev.vars untouched)"
 
 # Cleanup turso dev on exit
 cleanup() {
