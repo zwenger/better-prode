@@ -139,6 +139,50 @@ describe("LibSqlPredictionRepository", () => {
     expect(updated.points).toBe(7);
   });
 
+  // C1 RED: leaderboard must only sum points from the requested tournament,
+  // not accumulate predictions from all tournaments.
+  it("leaderboard SUM: only counts points from the requested tournament (cross-tournament isolation)", async () => {
+    const TOURNAMENT_ID_2 = "t2";
+    const MATCH_ID_2 = "match-t2-test";
+    const now = new Date().toISOString();
+
+    // Seed a second tournament with its own match
+    await db.execute({
+      sql: `INSERT INTO tournament(id, name, created_at) VALUES (?, ?, ?)`,
+      args: [TOURNAMENT_ID_2, "Other Tournament", now],
+    });
+    // Reuse the same teams (they belong to t1 per seedFixtures — add t2 own teams)
+    const HOME_TEAM_2 = "home-team-t2";
+    const AWAY_TEAM_2 = "away-team-t2";
+    await db.execute({
+      sql: `INSERT INTO team(id, tournament_id, name, code) VALUES (?, ?, ?, ?)`,
+      args: [HOME_TEAM_2, TOURNAMENT_ID_2, "Home T2", "HT2"],
+    });
+    await db.execute({
+      sql: `INSERT INTO team(id, tournament_id, name, code) VALUES (?, ?, ?, ?)`,
+      args: [AWAY_TEAM_2, TOURNAMENT_ID_2, "Away T2", "AT2"],
+    });
+    await db.execute({
+      sql: `INSERT INTO match(id, tournament_id, home_team_id, away_team_id, kickoff_utc, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      args: [MATCH_ID_2, TOURNAMENT_ID_2, HOME_TEAM_2, AWAY_TEAM_2, "2026-07-01T18:00:00Z", "finished", now],
+    });
+
+    // USER_ID_1 predicts in both tournaments
+    const predT1 = await repo.upsert({ userId: USER_ID_1, matchId: MATCH_ID, homeGoals: 2, awayGoals: 1 });
+    const predT2 = await repo.upsert({ userId: USER_ID_1, matchId: MATCH_ID_2, homeGoals: 1, awayGoals: 0 });
+
+    await repo.updatePoints(predT1.id, 7);  // 7 pts in tournament 1
+    await repo.updatePoints(predT2.id, 10); // 10 pts in tournament 2
+
+    // Leaderboard for TOURNAMENT_ID (t1) must return only 7, not 17
+    const leaderboard = await repo.getLeaderboard(GROUP_ID, TOURNAMENT_ID);
+
+    const u1Entry = leaderboard.find((e) => e.userId === USER_ID_1);
+    // CRITICAL: must NOT include t2 points (10), only t1 points (7)
+    expect(u1Entry!.totalPoints).toBe(7);
+  });
+
   it("leaderboard SUM: sum of points per user in a group for a tournament", async () => {
     const pred1 = await repo.upsert({
       userId: USER_ID_1,
