@@ -6,9 +6,7 @@
     "node": ">=22"
   },
   "imports": {
-    "#/*": "./src/*",
-    "#tanstack-router-entry": "./src/router.tsx",
-    "#tanstack-start-entry": "./src/start.ts"
+    "#/*": "./src/*"
   },
   "scripts": {
     "dev": "vite dev --port 3000",

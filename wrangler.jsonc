@@ -3,7 +3,7 @@
   "name": "better-prode",
   "compatibility_date": "2025-09-02",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "./src/server-entry.ts",
+  "main": "./src/server.ts",
 
   // Durable Object bindings — MatchDO is a stub in PR 0; full impl in PR 1
   "durable_objects": {
