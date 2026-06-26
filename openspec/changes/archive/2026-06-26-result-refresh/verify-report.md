@@ -202,4 +202,3 @@ Additionally, the following behaviors are unit-tested but only fully exercised p
 | All settlement via applyMatchResult | — | Yes | Structural (no new settle logic; tsc confirms) |
 
 Total: 13 spec scenarios, 13 covered. No uncovered scenarios.
-
