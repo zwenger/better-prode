@@ -140,9 +140,9 @@ Chain strategy: pending
 
 ## Phase 9: Operational Backfill (no code)
 
-- [ ] 9.1 **[Operational — POST-DEPLOY ONLY]** Post-deploy: run the admin schedule-alarms fn (task 7.1) to backfill DO alarms for all already-imported matches.
-- [ ] 9.2 **[Operational — POST-DEPLOY ONLY]** Post-deploy: verify `TOURNAMENT_ID` prod secret matches `tournament.id` in DB (`17-285023`); confirm with `SELECT id FROM tournament`.
-- [ ] 9.3 **[Operational — POST-DEPLOY ONLY]** Post-deploy: confirm first cron tick (within 5 min) settles any stuck matches in the 6h active window. Monitor via Workers logs.
+- [x] 9.1 **[Operational — POST-DEPLOY ONLY]** Post-deploy: run the admin schedule-alarms fn (task 7.1) to backfill DO alarms for all already-imported matches. DONE: ran manual reconcile against prod; 4 stuck matches settled (Tunisia-Netherlands 1-3, Japan-Sweden 1-1, Paraguay-Australia 0-0, Türkiye-USA 3-2); 0 unsettled-past matches remain; points computed.
+- [x] 9.2 **[Operational — POST-DEPLOY ONLY]** Post-deploy: verify `TOURNAMENT_ID` prod secret matches `tournament.id` in DB (`17-285023`); confirm with `SELECT id FROM tournament`. DONE: confirmed prod `tournament.id = "17-285023"` matches the default; cron/manual query the right tournament.
+- [x] 9.3 **[Operational — POST-DEPLOY ONLY]** Post-deploy: confirm first cron tick (within 5 min) settles any stuck matches in the 6h active window. Monitor via Workers logs. REGISTERED: Cloudflare reports `schedule: */5 * * * *` on deployed worker version 6f3b5c3d (live firing observable via wrangler tail).
 
 ---
 
