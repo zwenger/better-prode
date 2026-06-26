@@ -12,6 +12,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { useState } from "react";
+import { usePushSubscription } from "#/hooks/usePushSubscription";
 import { asc, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { getDb } from "#/infra/db/client";
@@ -29,6 +30,7 @@ import type { MatchListItem } from "#/routes/matches/-match-list-loader";
 interface LoaderData {
   matches: MatchListItem[];
   userId: string | null;
+  vapidPublicKey: string | null;
 }
 
 const getMatches = createServerFn({ method: "GET" }).handler(
@@ -82,7 +84,11 @@ const getMatches = createServerFn({ method: "GET" }).handler(
     // shapeMatchRows: pure mapping — tested in -match-list-loader.test.ts
     const matches = shapeMatchRows(rows, userPredictionMap, clock.now());
 
-    return { matches, userId };
+    return {
+      matches,
+      userId,
+      vapidPublicKey: process.env["VAPID_PUBLIC_KEY"] ?? null,
+    };
   }
 );
 
@@ -235,8 +241,42 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+/**
+ * Reminder subscription button — shows only when the user is logged in,
+ * the server provided a VAPID public key, and the browser supports Web Push.
+ */
+function RemindersButton({ vapidPublicKey }: { vapidPublicKey: string }) {
+  const { isSupported, isSubscribed, isLoading, error, subscribe } =
+    usePushSubscription({ vapidPublicKey });
+
+  if (!isSupported) return null;
+
+  return (
+    <div className="mb-4">
+      <button
+        type="button"
+        onClick={() => { void subscribe(); }}
+        disabled={isLoading || isSubscribed}
+        className="w-full py-2 px-4 rounded border border-primary text-primary text-sm font-medium disabled:opacity-50 disabled:cursor-default"
+        data-testid="reminders-button"
+      >
+        {isLoading
+          ? "Activando…"
+          : isSubscribed
+            ? "Recordatorios activados"
+            : "Activar recordatorios"}
+      </button>
+      {error && (
+        <p className="mt-1 text-xs text-red-500" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function MatchListPage() {
-  const { matches, userId } = Route.useLoaderData();
+  const { matches, userId, vapidPublicKey } = Route.useLoaderData();
 
   const predictable = matches.filter((m) => m.status === "scheduled" && !m.locked);
   const live = matches.filter((m) => m.status === "in_progress");
@@ -248,6 +288,10 @@ function MatchListPage() {
   return (
     <div className="p-4 max-w-lg mx-auto" data-testid="match-list">
       <h1 className="text-2xl font-bold mb-6">Partidos</h1>
+
+      {userId && vapidPublicKey && (
+        <RemindersButton vapidPublicKey={vapidPublicKey} />
+      )}
 
       {matches.length === 0 && (
         <p className="text-muted-foreground" data-testid="no-matches">

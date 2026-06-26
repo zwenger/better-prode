@@ -102,7 +102,9 @@ export function usePushSubscription({
         return;
       }
 
-      // Get the service worker registration
+      // Register the service worker (no-op if already registered)
+      await navigator.serviceWorker.register("/sw.js");
+      // Get the active registration (waits for the SW to be ready)
       const registration = await navigator.serviceWorker.ready;
 
       // Subscribe to push
