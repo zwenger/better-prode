@@ -12,7 +12,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { usePushSubscription } from "#/hooks/usePushSubscription";
 import { asc, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
@@ -36,6 +36,11 @@ import type { GoalCount } from "#/domain/scoring";
 import { TeamButton } from "#/components/team-button";
 import { TeamSheet } from "#/components/team-sheet";
 import { PredictableMatchCard } from "#/components/predictable-match-card";
+import { StickyBatchBar } from "#/components/sticky-batch-bar";
+import { isDirty } from "#/app/is-dirty";
+import type { Goals } from "#/app/is-dirty";
+import { aggregateBatchResults } from "#/app/aggregate-batch-results";
+import { submitBatchPredictions } from "#/routes/api/predictions/-submit";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -576,6 +581,16 @@ function FilterChips({
 // Main page
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Memoized predictable card — prevents re-renders on unrelated state changes
+// ---------------------------------------------------------------------------
+
+const MemoizedPredictableMatchCard = memo(PredictableMatchCard);
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
+
 function MatchListPage() {
   const { matches, userId, vapidPublicKey } = Route.useLoaderData();
   const [tab, setTab] = useState<FilterTab>("all");
@@ -585,6 +600,43 @@ function MatchListPage() {
     name: string;
   }>({ open: false, code: null, name: "" });
 
+  // ---------------------------------------------------------------------------
+  // Draft state — page-owned Map<matchId, Goals>
+  // Seeded from match.userPrediction; tracks the current stepper values.
+  // ---------------------------------------------------------------------------
+  const [drafts, setDrafts] = useState<Map<string, Goals>>(() => {
+    const m = new Map<string, Goals>();
+    for (const match of matches) {
+      if (match.status === "scheduled" && !match.locked) {
+        m.set(match.id, {
+          homeGoals: match.userPrediction?.homeGoals ?? 0,
+          awayGoals: match.userPrediction?.awayGoals ?? 0,
+        });
+      }
+    }
+    return m;
+  });
+
+  // savedBaseline — last known persisted value; updated after successful saves.
+  const [savedBaseline, setSavedBaseline] = useState<Map<string, Goals>>(() => {
+    const m = new Map<string, Goals>();
+    for (const match of matches) {
+      if (match.userPrediction && match.status === "scheduled" && !match.locked) {
+        m.set(match.id, {
+          homeGoals: match.userPrediction.homeGoals,
+          awayGoals: match.userPrediction.awayGoals,
+        });
+      }
+    }
+    return m;
+  });
+
+  // ---------------------------------------------------------------------------
+  // Batch save state
+  // ---------------------------------------------------------------------------
+  const [batchSaving, setBatchSaving] = useState(false);
+  const [batchResult, setBatchResult] = useState<string | null>(null);
+
   // Post-mount fire-and-forget refresh — triggers background FIFA polling for
   // any overdue unsettled matches without blocking page render.
   // Failures are silently swallowed per spec; render never depends on this call.
@@ -592,33 +644,119 @@ function MatchListPage() {
     void fetch("/api/refresh", { method: "POST" });
   }, []);
 
-  const handleTeamPress = (code: string | null, name: string) => {
+  const handleTeamPress = useCallback((code: string | null, name: string) => {
     setTeamSheet({ open: true, code, name });
-  };
+  }, []);
 
-  const predictable = matches.filter((m) => m.status === "scheduled" && !m.locked);
-  const locked = matches.filter((m) => m.status === "scheduled" && m.locked);
-  const live = matches.filter((m) => m.status === "in_progress");
-  const finished = matches
-    .filter((m) => m.status === "finished")
-    .sort((a, b) => b.kickoffUtc.localeCompare(a.kickoffUtc));
+  // Stable per-card onChange handler — only re-created when matchId changes
+  // (which never happens for a mounted card).
+  const makeHandleChange = useCallback(
+    (matchId: string) => (next: Goals) => {
+      setDrafts((prev) => {
+        const next_ = new Map(prev);
+        next_.set(matchId, next);
+        return next_;
+      });
+      // Clear any previous batch result when the user starts editing again.
+      setBatchResult(null);
+    },
+    []
+  );
 
-  const showPredictable =
-    tab === "all" || tab === "predict";
-  const showLive =
-    tab === "all" || tab === "live";
-  const showResults =
-    tab === "all" || tab === "results";
-  const showLocked =
-    tab === "all";
+  const predictable = useMemo(
+    () => matches.filter((m) => m.status === "scheduled" && !m.locked),
+    [matches]
+  );
+  const locked = useMemo(
+    () => matches.filter((m) => m.status === "scheduled" && m.locked),
+    [matches]
+  );
+  const live = useMemo(
+    () => matches.filter((m) => m.status === "in_progress"),
+    [matches]
+  );
+  const finished = useMemo(
+    () =>
+      matches
+        .filter((m) => m.status === "finished")
+        .sort((a, b) => b.kickoffUtc.localeCompare(a.kickoffUtc)),
+    [matches]
+  );
+
+  // Count of dirty predictable matches — drives the sticky bar visibility.
+  const dirtyCount = useMemo(() => {
+    let count = 0;
+    for (const m of predictable) {
+      const draft = drafts.get(m.id) ?? { homeGoals: 0, awayGoals: 0 };
+      const saved = savedBaseline.get(m.id) ?? null;
+      if (isDirty(draft, saved)) count++;
+    }
+    return count;
+  }, [predictable, drafts, savedBaseline]);
+
+  // ---------------------------------------------------------------------------
+  // Batch save handler
+  // ---------------------------------------------------------------------------
+  const handleSaveAll = useCallback(async () => {
+    // Collect only dirty predictions
+    const dirty = predictable
+      .filter((m) => {
+        const draft = drafts.get(m.id) ?? { homeGoals: 0, awayGoals: 0 };
+        const saved = savedBaseline.get(m.id) ?? null;
+        return isDirty(draft, saved);
+      })
+      .map((m) => {
+        const draft = drafts.get(m.id) ?? { homeGoals: 0, awayGoals: 0 };
+        return { matchId: m.id, homeGoals: draft.homeGoals, awayGoals: draft.awayGoals };
+      });
+
+    if (dirty.length === 0) return;
+
+    setBatchSaving(true);
+    setBatchResult(null);
+
+    try {
+      const { results } = await submitBatchPredictions({ data: { predictions: dirty } });
+      const summary = aggregateBatchResults(results);
+
+      // Update savedBaseline for each successfully saved prediction.
+      setSavedBaseline((prev) => {
+        const next = new Map(prev);
+        for (const [matchId, res] of Object.entries(results)) {
+          if (res.status === "saved") {
+            const draft = drafts.get(matchId);
+            if (draft) next.set(matchId, { ...draft });
+          }
+        }
+        return next;
+      });
+
+      setBatchResult(`${summary.saved} de ${summary.total} guardadas`);
+    } catch {
+      setBatchResult("Error al guardar. Intentá de nuevo.");
+    } finally {
+      setBatchSaving(false);
+    }
+  }, [predictable, drafts, savedBaseline]);
+
+  const showPredictable = tab === "all" || tab === "predict";
+  const showLive = tab === "all" || tab === "live";
+  const showResults = tab === "all" || tab === "results";
+  const showLocked = tab === "all";
 
   const isEmpty = matches.length === 0;
   const nothingToPredict =
     !isEmpty && tab === "predict" && predictable.length === 0;
 
+  // Extra bottom padding when the batch bar is visible so content is not trapped.
+  const hasBar = dirtyCount > 0 || batchResult !== null;
+
   return (
     <AppShell>
-      <div className="max-w-md mx-auto">
+      <div
+        className="max-w-md mx-auto"
+        style={hasBar ? { paddingBottom: "calc(4rem + env(safe-area-inset-bottom))" } : undefined}
+      >
         {/* Sticky page header */}
         <header
           className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4"
@@ -675,10 +813,13 @@ function MatchListPage() {
                 Para predecir
               </h2>
               {predictable.map((m) => (
-                <PredictableMatchCard
+                <MemoizedPredictableMatchCard
                   key={m.id}
                   match={m}
                   userId={userId}
+                  value={drafts.get(m.id) ?? { homeGoals: m.userPrediction?.homeGoals ?? 0, awayGoals: m.userPrediction?.awayGoals ?? 0 }}
+                  onChange={makeHandleChange(m.id)}
+                  savedValue={savedBaseline.get(m.id) ?? null}
                   onTeamPress={handleTeamPress}
                 />
               ))}
@@ -736,6 +877,14 @@ function MatchListPage() {
           )}
         </div>
       </div>
+
+      {/* Sticky batch save bar — floats above the tab bar */}
+      <StickyBatchBar
+        dirtyCount={dirtyCount}
+        saving={batchSaving}
+        result={batchResult}
+        onSaveAll={() => { void handleSaveAll(); }}
+      />
 
       <TeamSheet
         open={teamSheet.open}

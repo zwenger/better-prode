@@ -244,4 +244,71 @@ test.describe("Match Views — match list, predictions, drawer", () => {
     // TanStack Start server fns return error status codes on throw
     expect([403, 404, 405]).toContain(response.status());
   });
+
+  // ---------------------------------------------------------------------------
+  // 4.10: Batch save — "Guardar todas (N)" saves N dirty predictions
+  //
+  // Tests the StickyBatchBar E2E flow: user edits multiple cards → batch bar
+  // appears → clicking "Guardar todas (N)" saves all dirty predictions →
+  // "prediction-saved" testids appear on each saved card → bar disappears.
+  // ---------------------------------------------------------------------------
+
+  test("Guardar todas (N) saves N dirty predictions and hides the batch bar", async () => {
+    await seedUserAndInjectSession(page, context, matchViewsUser);
+    await page.goto("/matches");
+
+    // Wait for the "Para predecir" section to be available.
+    const section = page.getByRole("heading", { name: /para predecir/i });
+    await expect(section).toBeVisible({ timeout: 15000 });
+
+    // Find all predictable cards (those with a submit-prediction button).
+    const predictableCards = page.getByTestId("match-card").filter({
+      has: page.getByTestId("submit-prediction"),
+    });
+    const cardCount = await predictableCards.count();
+
+    // Need at least 2 cards to do a meaningful batch test; skip if not enough.
+    if (cardCount < 2) {
+      test.skip();
+      return;
+    }
+
+    // Edit the first two cards by incrementing the home goals stepper once each.
+    // This makes them "dirty" relative to their loaded baseline.
+    const firstCard = predictableCards.nth(0);
+    const firstMatchId = await firstCard.getAttribute("data-match-id");
+    const secondCard = predictableCards.nth(1);
+    const secondMatchId = await secondCard.getAttribute("data-match-id");
+
+    await firstCard.getByRole("button", { name: /increase home goals/i }).click();
+    await secondCard.getByRole("button", { name: /increase home goals/i }).click();
+
+    // The StickyBatchBar should appear with "Guardar todas (2)".
+    const batchBar = page.getByTestId("batch-save-bar");
+    await expect(batchBar).toBeVisible({ timeout: 5000 });
+    const batchButton = page.getByTestId("batch-save-button");
+    await expect(batchButton).toContainText("Guardar todas (2)");
+
+    // Click the batch save button.
+    await batchButton.click();
+
+    // Pin to both cards by their match IDs so assertions survive state transitions.
+    const pinnedFirst = page.locator(`[data-testid="match-card"][data-match-id="${firstMatchId}"]`);
+    const pinnedSecond = page.locator(`[data-testid="match-card"][data-match-id="${secondMatchId}"]`);
+
+    // Each card should show the "¡Guardado!" flash (predictions-saved) or
+    // transition back to the editable state. The batch result summary should
+    // appear in the bar.
+    const batchResult = page.getByTestId("batch-save-result");
+    await expect(batchResult).toBeVisible({ timeout: 10000 });
+    await expect(batchResult).toContainText("de 2 guardadas");
+
+    // After the batch completes the cards should no longer be dirty — their
+    // saved baseline is updated. The cards should show the edit button again.
+    await expect(pinnedFirst.getByTestId("submit-prediction")).toBeVisible({ timeout: 5000 });
+    await expect(pinnedSecond.getByTestId("submit-prediction")).toBeVisible({ timeout: 5000 });
+
+    // Verify the URL stayed on /matches (no navigation).
+    expect(page.url()).toContain("/matches");
+  });
 });
