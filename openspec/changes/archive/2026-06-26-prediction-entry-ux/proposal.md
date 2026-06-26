@@ -70,8 +70,8 @@ Each slice is an independent revert. Slice 1 (extraction + bug fix) and Slice 2 
 
 ## Success Criteria
 
-- [ ] After saving a prediction, the button reappears as "Editar predicción" with no reload.
-- [ ] A user can edit several matches and save them all via "Guardar todas (N)".
-- [ ] Partial batch failures surface as "X de N guardados" with per-card locked/error.
-- [ ] Both `/matches` and `/today` use the single shared card.
-- [ ] E2E covers button-reappears and batch-save paths.
+- [x] After saving a prediction, the button reappears as "Editar predicción" with no reload.
+- [x] A user can edit several matches and save them all via "Guardar todas (N)".
+- [x] Partial batch failures surface as "X de N guardados" with per-card locked/error.
+- [x] Both `/matches` and `/today` use the single shared card.
+- [x] E2E covers button-reappears and batch-save paths.
