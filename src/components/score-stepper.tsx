@@ -34,7 +34,7 @@ export function ScoreStepper({
         type="button"
         onClick={() => onChange(Math.max(min, value - 1))}
         disabled={disabled}
-        className="w-11 h-11 rounded border text-lg font-bold flex items-center justify-center disabled:opacity-40"
+        className="w-11 h-11 rounded border border-border text-lg font-bold flex items-center justify-center disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pitch-green focus-visible:ring-offset-1 hover:bg-surface-subtle transition-colors duration-150"
         aria-label={`Decrease ${label}`}
       >
         −
@@ -46,7 +46,7 @@ export function ScoreStepper({
         type="button"
         onClick={() => onChange(value + 1)}
         disabled={disabled}
-        className="w-11 h-11 rounded border text-lg font-bold flex items-center justify-center disabled:opacity-40"
+        className="w-11 h-11 rounded border border-border text-lg font-bold flex items-center justify-center disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pitch-green focus-visible:ring-offset-1 hover:bg-surface-subtle transition-colors duration-150"
         aria-label={`Increase ${label}`}
       >
         +

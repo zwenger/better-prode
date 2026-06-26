@@ -164,6 +164,28 @@
     font-family: Archivo, system-ui, sans-serif;
     font-feature-settings: 'tnum' 1;
   }
+
+  /* Batch bar entrance animation */
+  @keyframes batch-bar-slide-up {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .batch-bar-enter {
+    animation: batch-bar-slide-up 150ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .batch-bar-enter {
+      animation: none;
+    }
+  }
 }
 
 html,

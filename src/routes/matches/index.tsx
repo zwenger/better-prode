@@ -175,7 +175,7 @@ function RemindersButton({ vapidPublicKey }: { vapidPublicKey: string }) {
 
 function ResultOnlyRow({ match }: { match: MatchListItem }) {
   return (
-    <div className="rounded-xl px-3 py-3 bg-muted flex items-center gap-3 mb-2">
+    <div className="rounded-xl px-3 py-3 bg-surface-subtle flex items-center gap-3 mb-2">
       <div className="flex items-center gap-1 shrink-0">
         <TeamFlag code={match.homeCode} />
         <span className="text-xs font-medium text-muted-foreground">
@@ -564,7 +564,7 @@ function FilterChips({
           type="button"
           onClick={() => onSelect(chip.key)}
           className={[
-            "shrink-0 rounded-full px-[14px] py-[6px] text-xs font-semibold transition-colors",
+            "shrink-0 rounded-full px-[14px] py-[6px] text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pitch-green focus-visible:ring-offset-2",
             tab === chip.key
               ? "bg-primary text-primary-foreground"
               : "bg-muted text-muted-foreground",
@@ -809,7 +809,7 @@ function MatchListPage() {
           {/* Para predecir section */}
           {showPredictable && predictable.length > 0 && (
             <section>
-              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.01em] mb-3 pt-4">
+              <h2 className="text-xs font-semibold text-muted-foreground mb-3 pt-4">
                 Para predecir
               </h2>
               {predictable.map((m) => (
@@ -829,7 +829,7 @@ function MatchListPage() {
           {/* En vivo section */}
           {showLive && live.length > 0 && (
             <section>
-              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.01em] mb-3 pt-4">
+              <h2 className="text-xs font-semibold text-muted-foreground mb-3 pt-4">
                 En vivo
               </h2>
               {live.map((m) => (
@@ -848,7 +848,7 @@ function MatchListPage() {
           {/* Resultados section */}
           {showResults && finished.length > 0 && (
             <section>
-              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.01em] mb-3 pt-4">
+              <h2 className="text-xs font-semibold text-muted-foreground mb-3 pt-4">
                 Resultados
               </h2>
               {finished.map((m) => (
@@ -867,7 +867,7 @@ function MatchListPage() {
           {/* Locked upcoming (all tab only) */}
           {showLocked && locked.length > 0 && (
             <section>
-              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.01em] mb-3 pt-4">
+              <h2 className="text-xs font-semibold text-muted-foreground mb-3 pt-4">
                 Próximos cerrados
               </h2>
               {locked.map((m) => (

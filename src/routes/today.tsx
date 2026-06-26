@@ -727,7 +727,7 @@ function TodayPage() {
           <section className="mt-2">
             <div className="px-4 py-2">
               <h2
-                className="text-xs font-semibold tracking-[0.01em] text-muted-foreground uppercase mb-3"
+                className="text-xs font-semibold text-muted-foreground mb-3"
                 style={{ fontFamily: "Inter, system-ui, sans-serif" }}
               >
                 Recientes

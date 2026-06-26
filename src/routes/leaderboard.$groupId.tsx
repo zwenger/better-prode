@@ -184,8 +184,8 @@ function LeaderboardPage() {
     <AppShell>
       <div className="p-4 max-w-2xl mx-auto" data-testid="leaderboard">
         <header className="mb-6">
-          <h1 className="text-2xl font-bold">Leaderboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Group: {groupId}</p>
+          <h1 className="text-2xl font-bold">Tabla</h1>
+          <p className="text-sm text-muted-foreground mt-1">Grupo</p>
         </header>
 
         <Standings
