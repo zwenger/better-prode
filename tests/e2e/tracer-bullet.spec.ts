@@ -44,18 +44,17 @@ test.describe("Tracer Bullet — login → predict → settle → leaderboard", 
     await expect(signInEl).toBeVisible({ timeout: 10000 });
   });
 
-  test("auth bypass login → user sees welcome and nav links", async () => {
+  test("auth bypass login → logged-in user at / redirects to /today", async () => {
     await seedUserAndInjectSession(page, context, TEST_USER);
     await page.goto("/");
 
-    // User should be welcomed
-    const welcome = page.locator("[data-testid='welcome-user']");
-    await expect(welcome).toBeVisible({ timeout: 10000 });
-    await expect(welcome).toContainText(TEST_USER.name);
+    // Logged-in user at / must redirect to /today (server-side)
+    await page.waitForURL(/\/today/, { timeout: 10000 });
+    expect(page.url()).toContain("/today");
 
-    // Navigation to matches should be visible
-    const matchesLink = page.locator("[data-testid='nav-matches']");
-    await expect(matchesLink).toBeVisible();
+    // The global brand header is visible — user is in the app
+    const brand = page.locator("[data-testid='app-brand-home']");
+    await expect(brand).toBeVisible();
   });
 
   test("match list shows seeded matches after login", async () => {

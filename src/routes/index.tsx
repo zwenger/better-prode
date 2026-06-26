@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/start-server-core";
 import { auth } from "#/infra/auth/auth";
@@ -11,51 +11,113 @@ const getSession = createServerFn({ method: "GET" }).handler(async () => {
 });
 
 export const Route = createFileRoute("/")({
-  loader: async () => getSession(),
+  loader: async () => {
+    const { user } = await getSession();
+    if (user) throw redirect({ to: "/today" });
+    return {};
+  },
   component: Home,
 });
 
 function Home() {
-  const { user } = Route.useLoaderData();
-
   return (
-    <div className="p-8 max-w-lg mx-auto" data-testid="home-page">
-      <h1 className="text-4xl font-bold mb-4">Better Prode</h1>
-      {user ? (
-        <div>
-          <p className="mb-4" data-testid="welcome-user">
-            Welcome, <strong>{user.name || user.email}</strong>!
-          </p>
-          <nav className="space-y-2">
-            <Link
-              to="/matches"
-              className="block px-4 py-2 bg-primary text-primary-foreground rounded text-center"
-              data-testid="nav-matches"
-            >
-              View Matches
-            </Link>
-          </nav>
-        </div>
-      ) : (
-        <div>
-          <p className="mb-4 text-muted-foreground" data-testid="login-prompt">
-            Sign in to start predicting match scores.
-          </p>
-          <button
-            type="button"
-            onClick={() =>
-              authClient.signIn.social({
-                provider: "google",
-                callbackURL: "/",
-              })
-            }
-            className="block w-full px-4 py-2 bg-primary text-primary-foreground rounded text-center"
-            data-testid="sign-in-google"
-          >
-            Sign in with Google
-          </button>
-        </div>
-      )}
+    <div
+      style={{
+        minHeight: "100dvh",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "var(--surface)",
+        padding: "1.5rem",
+      }}
+      data-testid="home-page"
+    >
+      <h1
+        style={{
+          fontFamily: "Archivo, system-ui, sans-serif",
+          fontWeight: 800,
+          fontSize: "clamp(1.75rem, 5vw, 2.75rem)",
+          color: "var(--pitch-green)",
+          letterSpacing: "-0.02em",
+          margin: 0,
+          lineHeight: 1.1,
+        }}
+      >
+        better·prode
+      </h1>
+
+      <div
+        data-testid="login-prompt"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "1.5rem",
+          marginTop: "1rem",
+          width: "100%",
+          maxWidth: "320px",
+        }}
+      >
+        <p
+          style={{
+            fontFamily: "Inter, system-ui, sans-serif",
+            fontWeight: 400,
+            fontSize: "0.9375rem",
+            color: "var(--ink-muted)",
+            margin: 0,
+            textAlign: "center",
+            lineHeight: 1.5,
+          }}
+        >
+          Predicí los partidos del Mundial con tus amigos.
+        </p>
+
+        <hr
+          style={{
+            width: "2rem",
+            border: "none",
+            borderTop: "2px solid var(--pitch-green-tint)",
+            margin: 0,
+          }}
+        />
+
+        <button
+          type="button"
+          onClick={() =>
+            authClient.signIn.social({
+              provider: "google",
+              callbackURL: "/",
+            })
+          }
+          style={{
+            width: "100%",
+            height: "44px",
+            backgroundColor: "var(--pitch-green)",
+            color: "var(--surface)",
+            fontFamily: "Inter, system-ui, sans-serif",
+            fontWeight: 600,
+            fontSize: "0.9375rem",
+            border: "none",
+            borderRadius: "12px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            outline: "none",
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.boxShadow =
+              "0 0 0 3px var(--pitch-green-tint)";
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.boxShadow = "none";
+          }}
+          data-testid="sign-in-google"
+        >
+          Iniciar sesión con Google
+        </button>
+      </div>
     </div>
   );
 }
