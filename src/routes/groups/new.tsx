@@ -10,6 +10,7 @@
  */
 
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { AppShell } from "#/components/app-shell";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/start-server-core";
 import { useState } from "react";
@@ -83,6 +84,7 @@ function NewGroupPage() {
   };
 
   return (
+    <AppShell>
     <div className="p-4 max-w-sm mx-auto" data-testid="new-group-page">
       <h1 className="text-2xl font-bold mb-6">Crear grupo</h1>
 
@@ -121,5 +123,6 @@ function NewGroupPage() {
         </button>
       </form>
     </div>
+    </AppShell>
   );
 }

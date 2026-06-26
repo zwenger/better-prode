@@ -10,6 +10,7 @@
  */
 
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
+import { AppShell } from "#/components/app-shell";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/start-server-core";
 import { useState } from "react";
@@ -214,6 +215,7 @@ function MembersPage() {
   };
 
   return (
+    <AppShell>
     <div className="p-4 max-w-sm mx-auto" data-testid="members-page">
       <h1 className="text-2xl font-bold mb-1">{data.groupName}</h1>
       <p className="text-sm text-muted-foreground mb-6">
@@ -301,5 +303,6 @@ function MembersPage() {
         </a>
       </div>
     </div>
+    </AppShell>
   );
 }
