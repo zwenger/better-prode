@@ -15,6 +15,6 @@ export default [
     },
   },
   {
-    ignores: ['eslint.config.js', 'prettier.config.js', 'scripts/**', 'public/**'],
+    ignores: ['eslint.config.js', 'prettier.config.js', 'scripts/**', 'public/**', '.claude/**', '.github/skills/**', '.github/hooks/**'],
   },
 ]

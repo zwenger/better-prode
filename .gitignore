@@ -57,3 +57,6 @@ yarn-error.log*
 
 # TanStack generated
 __unconfig*
+
+# Skill registry cache (delegator index)
+.atl/
