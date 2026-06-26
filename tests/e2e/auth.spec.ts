@@ -67,12 +67,16 @@ test.describe("Auth — unauthenticated redirect + session persistence", () => {
     await expect(groupsOrEmpty).toBeVisible({ timeout: 10000 });
   });
 
-  test("auth-bypass user name appears in the UI after login", async () => {
+  test("auth-bypass user name — logged-in user at / redirects to /today", async () => {
     await seedUserAndInjectSession(page, context, TEST_USER);
     await page.goto("/");
 
-    const welcome = page.locator("[data-testid='welcome-user']");
-    await expect(welcome).toBeVisible({ timeout: 10000 });
-    await expect(welcome).toContainText(TEST_USER.name);
+    // Logged-in user at / redirects to /today server-side
+    await page.waitForURL(/\/today/, { timeout: 10000 });
+    expect(page.url()).toContain("/today");
+
+    // Global brand header visible — confirms the user is in the authenticated app
+    const brand = page.locator("[data-testid='app-brand-home']");
+    await expect(brand).toBeVisible();
   });
 });
