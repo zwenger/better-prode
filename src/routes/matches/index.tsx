@@ -19,23 +19,12 @@ import { match as matchTable, team as teamTable } from "#/infra/db/schema";
 import { getRequest } from "@tanstack/start-server-core";
 import { auth } from "#/infra/auth/auth";
 import { SystemClock } from "#/domain/ports/clock";
-import { isLocked } from "#/domain/lock";
 import { submitPrediction } from "#/routes/api/predictions/-submit";
 import { TeamFlag } from "#/components/team-flag";
-
-interface MatchListItem {
-  id: string;
-  homeName: string;
-  homeCode: string | null;
-  awayName: string;
-  awayCode: string | null;
-  kickoffUtc: string;
-  status: string;
-  homeScore: number | null;
-  awayScore: number | null;
-  groupLabel: string | null;
-  locked: boolean;
-}
+import { ScoreStepper } from "#/components/score-stepper";
+import { DrizzlePredictionRepository } from "#/adapters/db/prediction-repository";
+import { shapeMatchRows, formatKickoffUtc } from "#/routes/matches/-match-list-loader";
+import type { MatchListItem } from "#/routes/matches/-match-list-loader";
 
 interface LoaderData {
   matches: MatchListItem[];
@@ -73,21 +62,27 @@ const getMatches = createServerFn({ method: "GET" }).handler(
       .orderBy(asc(matchTable.kickoffUtc))
       .limit(120);
 
-    const matches: MatchListItem[] = rows.map((row) => ({
-      id: row.id,
-      homeName: row.homeName ?? row.homeTeamId,
-      homeCode: row.homeCode,
-      awayName: row.awayName ?? row.awayTeamId,
-      awayCode: row.awayCode,
-      kickoffUtc: row.kickoffUtc,
-      status: row.status,
-      homeScore: row.homeScore,
-      awayScore: row.awayScore,
-      groupLabel: row.groupLabel,
-      locked: isLocked(row.kickoffUtc, clock),
-    }));
+    // Task 4.6: fetch the current user's predictions so PredictableCard can
+    // initialize its steppers to the saved values (fixes the 0-0 reload bug).
+    const userId = session?.user.id ?? null;
+    let userPredictionMap = new Map<string, { homeGoals: number; awayGoals: number }>();
 
-    return { matches, userId: session?.user.id ?? null };
+    if (userId) {
+      const matchIds = rows.map((r) => r.id);
+      const predRepo = new DrizzlePredictionRepository(db);
+      const rawMap = await predRepo.findByUserForMatches(userId, matchIds);
+      userPredictionMap = new Map(
+        [...rawMap.entries()].map(([matchId, pred]) => [
+          matchId,
+          { homeGoals: pred.homeGoals, awayGoals: pred.awayGoals },
+        ])
+      );
+    }
+
+    // shapeMatchRows: pure mapping — tested in -match-list-loader.test.ts
+    const matches = shapeMatchRows(rows, userPredictionMap, clock.now());
+
+    return { matches, userId };
   }
 );
 
@@ -116,48 +111,13 @@ function TeamLabel({
   );
 }
 
-interface StepperProps {
-  value: number;
-  onChange: (value: number) => void;
-  disabled?: boolean;
-  label: string;
-}
-
-function ScoreStepper({ value, onChange, disabled = false, label }: StepperProps) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <button
-        type="button"
-        onClick={() => onChange(Math.max(0, value - 1))}
-        disabled={disabled}
-        className="w-10 h-10 rounded border text-lg font-bold flex items-center justify-center disabled:opacity-40"
-        aria-label={`Decrease ${label}`}
-      >
-        −
-      </button>
-      <span className="w-7 text-center font-bold text-xl">{value}</span>
-      <button
-        type="button"
-        onClick={() => onChange(value + 1)}
-        disabled={disabled}
-        className="w-10 h-10 rounded border text-lg font-bold flex items-center justify-center disabled:opacity-40"
-        aria-label={`Increase ${label}`}
-      >
-        +
-      </button>
-    </div>
-  );
-}
 
 function MatchHeader({ match }: { match: MatchListItem }) {
   return (
     <div className="flex justify-between items-center mb-3 text-sm text-muted-foreground">
       <span>
         {match.groupLabel ? `${match.groupLabel} · ` : ""}
-        {new Date(match.kickoffUtc).toLocaleString(undefined, {
-          dateStyle: "medium",
-          timeStyle: "short",
-        })}
+        {formatKickoffUtc(match.kickoffUtc)}
       </span>
       {match.status === "in_progress" && (
         <span className="text-xs font-semibold text-red-500">● EN VIVO</span>
@@ -166,7 +126,12 @@ function MatchHeader({ match }: { match: MatchListItem }) {
   );
 }
 
-/** Predictable (scheduled, not locked) match — steppers + submit. */
+/** Predictable (scheduled, not locked) match — steppers + submit.
+ *
+ * Task 4.6 fix: steppers are initialized from match.userPrediction (hydrated by
+ * the loader) so a previously saved prediction is shown on reload instead of
+ * defaulting to 0-0.  The button copy reflects "edit" vs "add" affordance per spec.
+ */
 function PredictableCard({
   match,
   userId,
@@ -174,10 +139,13 @@ function PredictableCard({
   match: MatchListItem;
   userId: string | null;
 }) {
-  const [homeGoals, setHomeGoals] = useState(0);
-  const [awayGoals, setAwayGoals] = useState(0);
+  // Initialize from the server-hydrated prediction; default to 0 when none exists.
+  const [homeGoals, setHomeGoals] = useState(match.userPrediction?.homeGoals ?? 0);
+  const [awayGoals, setAwayGoals] = useState(match.userPrediction?.awayGoals ?? 0);
   const [status, setStatus] = useState<"idle" | "submitting" | "done" | "locked" | "error">("idle");
   const navigate = useNavigate();
+
+  const hasPrediction = match.userPrediction !== null;
 
   const handleSubmit = async () => {
     if (!userId) {
@@ -216,7 +184,11 @@ function PredictableCard({
           className="mt-3 w-full py-2 bg-primary text-primary-foreground rounded font-medium disabled:opacity-50"
           data-testid="submit-prediction"
         >
-          {status === "submitting" ? "Guardando…" : "Guardar predicción"}
+          {status === "submitting"
+            ? "Guardando…"
+            : hasPrediction
+              ? "Editar predicción"
+              : "Guardar predicción"}
         </button>
       )}
       {status === "done" && (
