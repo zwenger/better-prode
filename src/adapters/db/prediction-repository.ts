@@ -23,6 +23,19 @@ export interface LeaderboardEntry {
   totalPoints: number;
 }
 
+/**
+ * Per-match leaderboard breakdown entry — shows each group member's prediction
+ * and points for a single match.  Members who have not predicted have null values.
+ *
+ * W-4 spec MUST: "users see each group member's points for a specific match."
+ */
+export interface MatchLeaderboardEntry {
+  userId: string;
+  homeGoals: number | null;
+  awayGoals: number | null;
+  points: number | null;
+}
+
 export class DrizzlePredictionRepository implements PredictionRepository {
   constructor(private readonly db: DrizzleDb) {}
 
@@ -40,6 +53,44 @@ export class DrizzlePredictionRepository implements PredictionRepository {
       .where(eq(predictionTable.matchId, matchId));
 
     return rows.map(this.rowToRecord);
+  }
+
+  /**
+   * Batch lookup of a single user's predictions for a set of matches.
+   *
+   * Task 4.6: Used by the match-list loader to hydrate PredictableCard initial
+   * state, fixing the "saved prediction reverts to 0-0 on reload" bug.
+   *
+   * Returns a Map<matchId, PredictionRecord> so callers can do O(1) lookup per
+   * match without an additional DB round-trip per card.
+   *
+   * Returns an empty Map when matchIds is empty (no DB query issued).
+   */
+  async findByUserForMatches(
+    userId: string,
+    matchIds: string[]
+  ): Promise<Map<string, PredictionRecord>> {
+    if (matchIds.length === 0) return new Map();
+
+    const rows = await this.db
+      .select({
+        id: predictionTable.id,
+        userId: predictionTable.userId,
+        matchId: predictionTable.matchId,
+        homeGoals: predictionTable.homeGoals,
+        awayGoals: predictionTable.awayGoals,
+        points: predictionTable.points,
+      })
+      .from(predictionTable)
+      .where(
+        sql`${predictionTable.userId} = ${userId} AND ${predictionTable.matchId} IN (${sql.join(matchIds.map((id) => sql`${id}`), sql`, `)})`
+      );
+
+    const map = new Map<string, PredictionRecord>();
+    for (const row of rows) {
+      map.set(row.matchId, this.rowToRecord(row));
+    }
+    return map;
   }
 
   async updatePoints(predictionId: string, points: number): Promise<void> {
@@ -143,6 +194,45 @@ export class DrizzlePredictionRepository implements PredictionRepository {
     return rows.map((row) => ({
       userId: row.userId,
       totalPoints: Number(row.totalPoints),
+    }));
+  }
+
+  /**
+   * Per-match leaderboard breakdown — returns every group member with their
+   * prediction (homeGoals, awayGoals, points) for a specific match.
+   *
+   * Members who have not submitted a prediction appear with null values
+   * (LEFT JOIN guarantee identical to the overall leaderboard query).
+   *
+   * W-4 spec MUST: "users see each group member's points for a specific match."
+   *
+   * Equivalent SQL:
+   *   SELECT gm.user_id, p.home_goals, p.away_goals, p.points
+   *   FROM group_membership gm
+   *   LEFT JOIN prediction p ON p.user_id = gm.user_id AND p.match_id = ?
+   *   WHERE gm.group_id = ?
+   */
+  async getMatchLeaderboard(
+    groupId: string,
+    matchId: string
+  ): Promise<MatchLeaderboardEntry[]> {
+    const rows = await this.db.all<{
+      userId: string;
+      homeGoals: number | null;
+      awayGoals: number | null;
+      points: number | null;
+    }>(sql`
+      SELECT gm.user_id AS userId, p.home_goals AS homeGoals, p.away_goals AS awayGoals, p.points AS points
+      FROM group_membership gm
+      LEFT JOIN prediction p ON p.user_id = gm.user_id AND p.match_id = ${matchId}
+      WHERE gm.group_id = ${groupId}
+    `);
+
+    return rows.map((row) => ({
+      userId: row.userId,
+      homeGoals: row.homeGoals ?? null,
+      awayGoals: row.awayGoals ?? null,
+      points: row.points ?? null,
     }));
   }
 

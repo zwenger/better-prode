@@ -13,6 +13,7 @@
  */
 
 import type { Clock } from "./ports/clock";
+import type { LeaderboardCache } from "./ports/leaderboard-cache";
 import { score } from "./scoring";
 
 // --- Domain types ---
@@ -64,6 +65,25 @@ export interface ApplyMatchResultPorts {
   predictionRepository: PredictionRepository;
 }
 
+/**
+ * Optional cache-invalidation options for applyMatchResult.
+ *
+ * W-1 fix: when provided, the function invalidates the leaderboard cache
+ * for every group affected by the settled tournament.
+ *
+ * Both fields are required together — provide neither or both.
+ * When absent, invalidation is skipped (backward-compatible, safe default).
+ */
+export interface ApplyMatchResultCacheOptions {
+  /** LeaderboardCache port instance to call invalidate() on. */
+  cache: LeaderboardCache;
+  /**
+   * Returns the distinct group IDs whose members have predictions in the
+   * given tournament. Used to enumerate which cache keys to evict.
+   */
+  listGroupIdsByTournament: (tournamentId: string) => Promise<string[]>;
+}
+
 // --- Command type ---
 
 export interface ApplyMatchResultCommand {
@@ -86,11 +106,17 @@ export interface ApplyMatchResultCommand {
  * On settlement:
  *  - Updates match.homeScore, awayScore, status, resultSource, settledAt
  *  - Computes scoring.score() for each prediction and writes prediction.points
+ *  - If cacheOptions is provided, invalidates the leaderboard cache for all
+ *    groups whose members have predictions in the settled tournament (W-1 fix).
+ *
+ * Cache invalidation is best-effort and does NOT affect the return value.
+ * Backward-compatible: omitting cacheOptions is safe for existing call sites.
  */
 export async function applyMatchResult(
   command: ApplyMatchResultCommand,
   ports: ApplyMatchResultPorts,
-  clock: Clock
+  clock: Clock,
+  cacheOptions?: ApplyMatchResultCacheOptions
 ): Promise<void> {
   const { matchRepository, predictionRepository } = ports;
 
@@ -133,6 +159,23 @@ export async function applyMatchResult(
         { homeGoals: command.homeScore, awayGoals: command.awayScore }
       );
       await predictionRepository.updatePoints(prediction.id, points);
+    }
+
+    // W-1 fix: invalidate leaderboard cache for all groups affected by this
+    // tournament's settlement. Points have been written above — any cached
+    // leaderboard for these groups is now stale.
+    // Best-effort: a cache failure must not prevent settlement from completing.
+    if (cacheOptions) {
+      try {
+        const { cache, listGroupIdsByTournament } = cacheOptions;
+        const groupIds = await listGroupIdsByTournament(match.tournamentId);
+        await Promise.all(
+          groupIds.map((groupId) => cache.invalidate(groupId, match.tournamentId))
+        );
+      } catch {
+        // Cache invalidation failure is non-fatal — the settlement already succeeded.
+        // Stale cache will expire via TTL (max 300s).
+      }
     }
   } else {
     // in_progress (or scheduled): update status only — drives the bet-lock.

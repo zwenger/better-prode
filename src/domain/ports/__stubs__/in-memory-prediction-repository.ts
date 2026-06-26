@@ -49,6 +49,21 @@ export class InMemoryPredictionRepository implements PredictionRepository {
     return { ...record };
   }
 
+  async findByUserForMatches(
+    userId: string,
+    matchIds: string[]
+  ): Promise<Map<string, PredictionRecord>> {
+    const map = new Map<string, PredictionRecord>();
+    if (matchIds.length === 0) return map;
+    const matchIdSet = new Set(matchIds);
+    for (const pred of this.store) {
+      if (pred.userId === userId && matchIdSet.has(pred.matchId)) {
+        map.set(pred.matchId, { ...pred });
+      }
+    }
+    return map;
+  }
+
   /** Test helper: read all predictions. */
   all(): PredictionRecord[] {
     return [...this.store];
