@@ -2,11 +2,13 @@
  * Route: /groups/$groupId/invite
  *
  * Invite link generation + copy button.
+ * Loader pre-fetches the active invite link so it displays immediately on mount.
  * Server action revokes existing token on demand and generates a new one.
  *
  * Spec (groups): owner/admin can generate a shareable URL; revoke existing link on demand.
+ * The link is shown immediately when one already exists — no "generate first" gate.
  *
- * Task 2.11.
+ * Tasks 4.1, 4.2, 4.3.
  */
 
 import { createFileRoute, useParams } from "@tanstack/react-router";
@@ -29,6 +31,36 @@ interface InviteResult {
   inviteUrl: string;
   token: string;
 }
+
+interface ActiveInviteLoaderInput {
+  groupId: string;
+}
+
+interface ActiveInviteLoaderResult {
+  inviteUrl: string | null;
+}
+
+// Loader: fetch the active invite link for the group so it renders on mount.
+const getActiveInviteLoader = createServerFn({ method: "GET", strict: false })
+  .validator((data: unknown): ActiveInviteLoaderInput => data as ActiveInviteLoaderInput)
+  .handler(async ({ data }): Promise<ActiveInviteLoaderResult> => {
+    const request = getRequest();
+    const session = await auth.api.getSession({ headers: request.headers });
+
+    if (!session?.user) {
+      throw Object.assign(new Error("Unauthorized"), { status: 401 });
+    }
+
+    const db = getDb();
+    const invitationRepo = new DrizzleInvitationRepository(db);
+
+    const existing = await invitationRepo.getActiveByGroup(data.groupId);
+    if (!existing) return { inviteUrl: null };
+
+    const reqUrl = new URL(request.url);
+    const inviteUrl = `${reqUrl.origin}/invite/${existing.token}`;
+    return { inviteUrl };
+  });
 
 const generateInviteLinkAction = createServerFn({ method: "POST" })
   .validator((data: unknown): InviteInput => data as InviteInput)
@@ -70,12 +102,15 @@ const generateInviteLinkAction = createServerFn({ method: "POST" })
   });
 
 export const Route = createFileRoute("/groups/$groupId/invite")({
+  loader: async ({ params }) =>
+    getActiveInviteLoader({ data: { groupId: params["groupId"] } }),
   component: InvitePage,
 });
 
 function InvitePage() {
   const { groupId } = useParams({ from: "/groups/$groupId/invite" });
-  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const loaderData = Route.useLoaderData();
+  const [inviteUrl, setInviteUrl] = useState<string | null>(loaderData.inviteUrl);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -104,6 +104,18 @@ describe("DrizzleInvitationRepository", () => {
     expect(active).toBeNull();
   });
 
+  it("getActiveByGroup returns the most recently created pending row when multiple exist", async () => {
+    const older = "2024-01-01T00:00:00.000Z";
+    const newer = "2024-06-01T00:00:00.000Z";
+
+    await repo.create({ id: "inv-old", groupId: GROUP_ID, token: "tok-old", status: "pending", createdAt: older, expiresAt: null });
+    await repo.create({ id: "inv-new", groupId: GROUP_ID, token: "tok-new", status: "pending", createdAt: newer, expiresAt: null });
+
+    const active = await repo.getActiveByGroup(GROUP_ID);
+    expect(active).not.toBeNull();
+    expect(active!.token).toBe("tok-new");
+  });
+
   it("token uniqueness: duplicate token insert fails", async () => {
     const now = new Date().toISOString();
     await repo.create({ id: "inv-6", groupId: GROUP_ID, token: "tok-unique", status: "pending", createdAt: now, expiresAt: null });

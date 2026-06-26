@@ -8,7 +8,7 @@
  *  - createGroup: owner auto-assigned as role "owner"
  *  - createGroup: name must be 1–60 chars
  *  - generateInviteToken: only owner/admin can generate
- *  - joinViaToken: creates membership with role "member", marks invitation accepted
+ *  - joinViaToken: creates membership with role "member"; token stays pending (reusable)
  *  - joinViaToken: already-member returns "already_member" error
  *  - joinViaToken: invalid/revoked token returns "invalid_token" error
  *  - removeMember: owner or admin can remove a member
@@ -202,6 +202,32 @@ describe("generateInviteToken", () => {
     expect(result.invitation.token).toBeTruthy();
   });
 
+  it("generateInviteToken returns existing pending token when one already exists — no new row created", async () => {
+    const { group } = await createGroup({ name: "My Group", ownerId: "owner-1" }, groupRepo);
+
+    const result1 = await generateInviteToken(
+      { groupId: group.id, requesterId: "owner-1" },
+      groupRepo,
+      invitationRepo
+    );
+    const result2 = await generateInviteToken(
+      { groupId: group.id, requesterId: "owner-1" },
+      groupRepo,
+      invitationRepo
+    );
+
+    // Same invitation returned — idempotent
+    expect(result2.invitation.id).toBe(result1.invitation.id);
+    expect(result2.invitation.token).toBe(result1.invitation.token);
+
+    // Only one invitation row created
+    let count = 0;
+    for (const inv of invitationRepo.invitations.values()) {
+      if (inv.groupId === group.id) count++;
+    }
+    expect(count).toBe(1);
+  });
+
   it("member cannot generate an invite token (403)", async () => {
     const { group } = await createGroup({ name: "My Group", ownerId: "owner-1" }, groupRepo);
     await groupRepo.addMembership({ groupId: group.id, userId: "member-1", role: "member", joinedAt: new Date().toISOString() });
@@ -229,7 +255,7 @@ describe("generateInviteToken", () => {
 });
 
 describe("joinViaToken", () => {
-  it("creates a membership with role member and marks the invitation accepted", async () => {
+  it("creates a membership with role member and token remains pending (reusable link)", async () => {
     const { group } = await createGroup({ name: "My Group", ownerId: "owner-1" }, groupRepo);
     const { invitation } = await generateInviteToken(
       { groupId: group.id, requesterId: "owner-1" },
@@ -243,7 +269,27 @@ describe("joinViaToken", () => {
     expect(membership?.role).toBe("member");
 
     const inv = await invitationRepo.getByToken(invitation.token);
-    expect(inv?.status).toBe("accepted");
+    expect(inv?.status).toBe("pending");
+  });
+
+  it("second user joins the same group via the same token — both memberships exist, token stays pending", async () => {
+    const { group } = await createGroup({ name: "My Group", ownerId: "owner-1" }, groupRepo);
+    const { invitation } = await generateInviteToken(
+      { groupId: group.id, requesterId: "owner-1" },
+      groupRepo,
+      invitationRepo
+    );
+
+    await joinViaToken({ token: invitation.token, userId: "joiner-1" }, groupRepo, invitationRepo);
+    await joinViaToken({ token: invitation.token, userId: "joiner-2" }, groupRepo, invitationRepo);
+
+    const m1 = await groupRepo.getMembership(group.id, "joiner-1");
+    const m2 = await groupRepo.getMembership(group.id, "joiner-2");
+    expect(m1?.role).toBe("member");
+    expect(m2?.role).toBe("member");
+
+    const inv = await invitationRepo.getByToken(invitation.token);
+    expect(inv?.status).toBe("pending");
   });
 
   it("returns already_member when user is already in the group", async () => {
