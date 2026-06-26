@@ -1,4 +1,4 @@
-import type { Page, BrowserContext } from "@playwright/test";
+import type { Page, BrowserContext, Page as PlaywrightPage } from "@playwright/test";
 
 /**
  * Auth bypass helper for E2E tests.
@@ -32,6 +32,23 @@ export const ADMIN_USER: TestUser = {
   id: "test-admin-e2e-seed",
   email: "admin@better-prode.test",
   name: "E2E Admin User",
+};
+
+/**
+ * Dedicated users for match-views tests — one per Playwright project — so that
+ * parallel runs (chromium-desktop + chromium-mobile) don't race on the same
+ * user's predictions. Each user has a unique ID that maps to a project.
+ */
+export const MATCH_VIEWS_USER_DESKTOP: TestUser = {
+  id: "test-user-mv-desktop",
+  email: "mv-desktop@better-prode.test",
+  name: "Match Views Desktop",
+};
+
+export const MATCH_VIEWS_USER_MOBILE: TestUser = {
+  id: "test-user-mv-mobile",
+  email: "mv-mobile@better-prode.test",
+  name: "Match Views Mobile",
 };
 
 /**
@@ -110,4 +127,35 @@ export async function seedUserAndInjectSession(
   }
 
   return { user };
+}
+
+/**
+ * Resets volatile DB tables (prediction, push_subscription, invitation)
+ * via the test-only /api/test/reset-db endpoint.
+ *
+ * When `userId` is provided, only clears volatile data for that user — safe for
+ * parallel test runs (chromium-desktop + chromium-mobile running simultaneously).
+ * When omitted, performs a global reset (all rows in volatile tables).
+ *
+ * Call in beforeEach for tests that submit predictions or manipulate
+ * subscriptions/invitations so each test starts from a known clean state.
+ *
+ * Requires TEST_AUTH_BYPASS=true in the server environment (E2E builds only).
+ */
+export async function resetDb(page: PlaywrightPage, userId?: string): Promise<void> {
+  const baseURL =
+    process.env["PLAYWRIGHT_BASE_URL"] ?? "http://localhost:4173";
+
+  const body = userId ? { userId } : undefined;
+  const response = await page.request.post(`${baseURL}/api/test/reset-db`, {
+    data: body,
+  });
+  if (!response.ok()) {
+    const text = await response.text().catch(() => "(unreadable)");
+    console.warn(
+      `DB reset warning: POST /api/test/reset-db returned ${response.status()}.\n` +
+        `Body: ${text}\n` +
+        "Tests may be affected by data from prior test runs."
+    );
+  }
 }

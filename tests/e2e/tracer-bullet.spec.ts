@@ -19,7 +19,7 @@
 
 import { test, expect   } from "@playwright/test";
 import type {Page, BrowserContext} from "@playwright/test";
-import { seedUserAndInjectSession, TEST_USER } from "./helpers/auth-bypass";
+import { seedUserAndInjectSession, resetDb, TEST_USER } from "./helpers/auth-bypass";
 
 test.describe("Tracer Bullet — login → predict → settle → leaderboard", () => {
   let page: Page;
@@ -28,6 +28,9 @@ test.describe("Tracer Bullet — login → predict → settle → leaderboard", 
   test.beforeEach(async ({ browser }) => {
     context = await browser.newContext();
     page = await context.newPage();
+    // User-scoped reset: only clears TEST_USER's predictions so that
+    // parallel runs (chromium-desktop + chromium-mobile) don't interfere.
+    await resetDb(page, TEST_USER.id);
   });
 
   test.afterEach(async () => {
