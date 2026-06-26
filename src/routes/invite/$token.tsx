@@ -15,6 +15,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/start-server-core";
 import { useState } from "react";
 import { auth } from "#/infra/auth/auth";
+import { authClient } from "#/infra/auth/auth-client";
 import { getDb } from "#/infra/db/client";
 import { DrizzleGroupRepository } from "#/adapters/db/group-repository";
 import { DrizzleInvitationRepository } from "#/adapters/db/invitation-repository";
@@ -91,6 +92,7 @@ function InvitePage() {
   const navigate = useNavigate();
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { data: session } = authClient.useSession();
 
   if (!inviteInfo) {
     return (
@@ -99,6 +101,31 @@ function InvitePage() {
         <p className="text-muted-foreground">
           Este enlace de invitación no es válido o ya fue utilizado.
         </p>
+      </div>
+    );
+  }
+
+  if (!session?.user) {
+    return (
+      <div className="p-4 max-w-sm mx-auto" data-testid="invite-login-prompt">
+        <h1 className="text-2xl font-bold mb-2">Unirse al grupo</h1>
+        <p className="text-muted-foreground mb-6">
+          Para unirte a{" "}
+          <span className="font-semibold text-foreground" data-testid="invite-group-name">
+            {inviteInfo.groupName}
+          </span>
+          , necesitás iniciar sesión.
+        </p>
+        <button
+          type="button"
+          onClick={() =>
+            authClient.signIn.social({ provider: "google", callbackURL: `/invite/${token}` })
+          }
+          className="w-full py-2 bg-primary text-primary-foreground rounded font-medium"
+          data-testid="invite-sign-in-btn"
+        >
+          Iniciar sesión con Google
+        </button>
       </div>
     );
   }

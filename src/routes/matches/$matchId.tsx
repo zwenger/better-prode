@@ -16,6 +16,7 @@
  */
 
 import { createFileRoute } from "@tanstack/react-router";
+import { AppShell } from "#/components/app-shell";
 import { createServerFn } from "@tanstack/react-start";
 import { eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
@@ -211,6 +212,7 @@ function MatchDetailPage() {
   const kickoffLabel = formatKickoffUtc(match.kickoffUtc);
 
   return (
+    <AppShell>
     <div className="p-4 max-w-lg mx-auto">
       {/* Match header */}
       <div className="mb-4 text-sm text-muted-foreground flex items-center gap-2">
@@ -266,5 +268,6 @@ function MatchDetailPage() {
         )
       )}
     </div>
+    </AppShell>
   );
 }

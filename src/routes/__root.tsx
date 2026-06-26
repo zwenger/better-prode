@@ -1,4 +1,4 @@
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+import { HeadContent, Link, Scripts, createRootRoute } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
@@ -35,6 +35,35 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
+        <header
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 30,
+            backgroundColor: 'var(--background)',
+            borderBottom: '1px solid var(--border-hairline)',
+            display: 'flex',
+            alignItems: 'center',
+            height: '44px',
+            paddingLeft: '1rem',
+            paddingRight: '1rem',
+          }}
+        >
+          <Link
+            to="/today"
+            data-testid="app-brand-home"
+            style={{
+              fontFamily: 'Archivo, system-ui, sans-serif',
+              fontWeight: 700,
+              fontSize: '1rem',
+              color: 'var(--pitch-green)',
+              textDecoration: 'none',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            better-prode
+          </Link>
+        </header>
         {children}
         <TanStackDevtools
           config={{

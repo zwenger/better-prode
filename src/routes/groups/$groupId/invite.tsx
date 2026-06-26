@@ -10,6 +10,7 @@
  */
 
 import { createFileRoute, useParams } from "@tanstack/react-router";
+import { AppShell } from "#/components/app-shell";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/start-server-core";
 import { useState } from "react";
@@ -102,6 +103,7 @@ function InvitePage() {
   };
 
   return (
+    <AppShell>
     <div className="p-4 max-w-sm mx-auto" data-testid="invite-page">
       <h1 className="text-2xl font-bold mb-2">Invitar al grupo</h1>
       <p className="text-sm text-muted-foreground mb-6">
@@ -152,5 +154,6 @@ function InvitePage() {
         </p>
       )}
     </div>
+    </AppShell>
   );
 }
