@@ -125,6 +125,53 @@ test.describe("Match Views — match list, predictions, drawer", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // 4.8.3b: Submit button reappears as "Editar predicción" after save (bug fix)
+  //
+  // Regression: the old card entered a permanent "done" state after a successful
+  // save, permanently replacing the submit button. Users had to reload the page
+  // to edit their prediction. This test verifies the fix: after a successful
+  // save the button reappears within 2 s without navigation.
+  // ---------------------------------------------------------------------------
+
+  test("submit button reappears as Editar predicción after a successful save without reload", async () => {
+    await seedUserAndInjectSession(page, context, matchViewsUser);
+    await page.goto("/matches");
+
+    // Wait for the "Para predecir" section to be available (unlocked matches).
+    const section = page.getByRole("heading", { name: /para predecir/i });
+    await expect(section).toBeVisible({ timeout: 15000 });
+
+    // Identify the first card that has a submit button (predictable match).
+    // Pin the card by its data-match-id so the locator stays stable even while the
+    // card transitions through "submitting" → "saved" → "idle" states. A filter
+    // locator re-evaluates on every assertion and would drift to a different card
+    // while the original card's submit-prediction testid is temporarily absent.
+    const firstPredictableCard = page.getByTestId("match-card").filter({
+      has: page.getByTestId("submit-prediction"),
+    }).first();
+    const matchId = await firstPredictableCard.getAttribute("data-match-id");
+    // Use the stable data-match-id selector to pin assertions to this specific card.
+    const pinnedCard = page.locator(`[data-testid="match-card"][data-match-id="${matchId}"]`);
+
+    // Click save on the first predictable card.
+    await pinnedCard.getByTestId("submit-prediction").click();
+
+    // Wait for the transient "¡Guardado!" confirmation to appear on THIS card.
+    await expect(pinnedCard.getByTestId("prediction-saved")).toBeVisible({ timeout: 5000 });
+
+    // The button MUST reappear within 2 s after the flash (1.5 s + buffer).
+    // This asserts it becomes visible WITHOUT a reload (no page navigation).
+    await expect(pinnedCard.getByTestId("submit-prediction")).toBeVisible({ timeout: 3500 });
+
+    // Verify the URL did not change (no redirect happened).
+    expect(page.url()).toContain("/matches");
+
+    // Verify the button is labeled for edit (baseline saved) on THIS card.
+    const buttonText = await pinnedCard.getByTestId("submit-prediction").textContent();
+    expect(buttonText?.trim()).toBe("Editar predicción");
+  });
+
+  // ---------------------------------------------------------------------------
   // 4.8.4: Locked match shows disabled steppers
   // ---------------------------------------------------------------------------
 
