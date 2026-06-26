@@ -23,6 +23,30 @@ export interface LeaderboardEntry {
   totalPoints: number;
 }
 
+export interface LeaderboardWithNamesEntry {
+  userId: string;
+  displayName: string;
+  totalPoints: number;
+  plenosCount: number;
+}
+
+export interface MemberPredictionEntry {
+  predictionId: string;
+  predHomeGoals: number;
+  predAwayGoals: number;
+  points: number | null;
+  matchId: string;
+  kickoffUtc: string;
+  status: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  groupLabel: string | null;
+  homeName: string;
+  homeCode: string | null;
+  awayName: string;
+  awayCode: string | null;
+}
+
 /**
  * Per-match leaderboard breakdown entry — shows each group member's prediction
  * and points for a single match.  Members who have not predicted have null values.
@@ -233,6 +257,105 @@ export class DrizzlePredictionRepository implements PredictionRepository {
       homeGoals: row.homeGoals ?? null,
       awayGoals: row.awayGoals ?? null,
       points: row.points ?? null,
+    }));
+  }
+
+  async getLeaderboardWithNames(
+    groupId: string,
+    tournamentId: string
+  ): Promise<LeaderboardWithNamesEntry[]> {
+    const rows = await this.db.all<{
+      userId: string;
+      displayName: string;
+      totalPoints: number;
+      plenosCount: number;
+    }>(sql`
+      SELECT gm.user_id AS userId,
+             u.name AS displayName,
+             COALESCE(SUM(p.points), 0) AS totalPoints,
+             COUNT(CASE WHEN p.points = 7 THEN 1 END) AS plenosCount
+      FROM group_membership gm
+      INNER JOIN "user" u ON u.id = gm.user_id
+      LEFT JOIN (
+        prediction p
+        INNER JOIN match m ON m.id = p.match_id AND m.tournament_id = ${tournamentId}
+      ) ON p.user_id = gm.user_id
+      WHERE gm.group_id = ${groupId}
+      GROUP BY gm.user_id, u.name
+      ORDER BY totalPoints DESC
+    `);
+
+    return rows.map((row) => ({
+      userId: row.userId,
+      displayName: row.displayName,
+      totalPoints: Number(row.totalPoints),
+      plenosCount: Number(row.plenosCount),
+    }));
+  }
+
+  async getMemberPredictions(
+    memberId: string,
+    groupId: string,
+    tournamentId: string
+  ): Promise<MemberPredictionEntry[]> {
+    const rows = await this.db.all<{
+      predictionId: string;
+      predHomeGoals: number;
+      predAwayGoals: number;
+      points: number | null;
+      matchId: string;
+      kickoffUtc: string;
+      status: string;
+      homeScore: number | null;
+      awayScore: number | null;
+      groupLabel: string | null;
+      homeName: string;
+      homeCode: string | null;
+      awayName: string;
+      awayCode: string | null;
+    }>(sql`
+      SELECT p.id AS predictionId,
+             p.home_goals AS predHomeGoals,
+             p.away_goals AS predAwayGoals,
+             p.points AS points,
+             m.id AS matchId,
+             m.kickoff_utc AS kickoffUtc,
+             m.status AS status,
+             m.home_score AS homeScore,
+             m.away_score AS awayScore,
+             m.group_label AS groupLabel,
+             ht.name AS homeName,
+             ht.code AS homeCode,
+             at.name AS awayName,
+             at.code AS awayCode
+      FROM prediction p
+      INNER JOIN match m ON m.id = p.match_id AND m.tournament_id = ${tournamentId}
+             AND m.status IN ('finished', 'in_progress')
+      INNER JOIN team ht ON ht.id = m.home_team_id
+      INNER JOIN team at ON at.id = m.away_team_id
+      WHERE p.user_id = ${memberId}
+        AND EXISTS (
+          SELECT 1 FROM group_membership gm2
+          WHERE gm2.group_id = ${groupId} AND gm2.user_id = ${memberId}
+        )
+      ORDER BY m.kickoff_utc DESC
+    `);
+
+    return rows.map((row) => ({
+      predictionId: row.predictionId,
+      predHomeGoals: Number(row.predHomeGoals),
+      predAwayGoals: Number(row.predAwayGoals),
+      points: row.points !== null ? Number(row.points) : null,
+      matchId: row.matchId,
+      kickoffUtc: row.kickoffUtc,
+      status: row.status,
+      homeScore: row.homeScore !== null ? Number(row.homeScore) : null,
+      awayScore: row.awayScore !== null ? Number(row.awayScore) : null,
+      groupLabel: row.groupLabel,
+      homeName: row.homeName,
+      homeCode: row.homeCode,
+      awayName: row.awayName,
+      awayCode: row.awayCode,
     }));
   }
 

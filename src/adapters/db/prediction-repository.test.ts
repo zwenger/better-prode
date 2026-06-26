@@ -401,3 +401,98 @@ describe("DrizzlePredictionRepository.findByUserForMatches", () => {
     expect(result.get(M3)).toMatchObject({ homeGoals: 3, awayGoals: 1 });
   });
 });
+
+// ---------------------------------------------------------------------------
+// getLeaderboardWithNames — leaderboard with display names and plenos count
+// ---------------------------------------------------------------------------
+
+describe("DrizzlePredictionRepository.getLeaderboardWithNames", () => {
+  beforeEach(async () => {
+    db = await createTestDb();
+    repo = new DrizzlePredictionRepository(db);
+    await seedFixtures(db.$client);
+  });
+
+  it("returns displayName, totalPoints=7, plenosCount=1 for a pleno prediction", async () => {
+    const pred = await repo.upsert({ userId: USER_ID_1, matchId: MATCH_ID, homeGoals: 2, awayGoals: 1 });
+    await repo.updatePoints(pred.id, 7);
+
+    const entries = await repo.getLeaderboardWithNames(GROUP_ID, TOURNAMENT_ID);
+
+    const e1 = entries.find((e) => e.userId === USER_ID_1);
+    expect(e1).toBeDefined();
+    expect(e1!.displayName).toBe("User One");
+    expect(e1!.totalPoints).toBe(7);
+    expect(e1!.plenosCount).toBe(1);
+  });
+
+  it("returns totalPoints=0, plenosCount=0 for a member with no predictions", async () => {
+    // USER_ID_2 has no predictions at all
+    const entries = await repo.getLeaderboardWithNames(GROUP_ID, TOURNAMENT_ID);
+
+    const e2 = entries.find((e) => e.userId === USER_ID_2);
+    expect(e2).toBeDefined();
+    expect(e2!.displayName).toBe("User Two");
+    expect(e2!.totalPoints).toBe(0);
+    expect(e2!.plenosCount).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getMemberPredictions — member prediction entries with match metadata
+// ---------------------------------------------------------------------------
+
+describe("DrizzlePredictionRepository.getMemberPredictions", () => {
+  beforeEach(async () => {
+    db = await createTestDb();
+    repo = new DrizzlePredictionRepository(db);
+    await seedFixtures(db.$client);
+    // MATCH_ID is already "finished" (seeded in seedFixtures)
+  });
+
+  it("returns prediction with correct fields for a finished match", async () => {
+    const pred = await repo.upsert({ userId: USER_ID_1, matchId: MATCH_ID, homeGoals: 2, awayGoals: 1 });
+    await repo.updatePoints(pred.id, 4);
+
+    const entries = await repo.getMemberPredictions(USER_ID_1, GROUP_ID, TOURNAMENT_ID);
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0].predHomeGoals).toBe(2);
+    expect(entries[0].predAwayGoals).toBe(1);
+    expect(entries[0].points).toBe(4);
+    expect(entries[0].homeName).toBe("Home FC");
+    expect(entries[0].homeCode).toBe("HFC");
+    expect(entries[0].awayName).toBe("Away FC");
+    expect(entries[0].status).toBe("finished");
+  });
+
+  it("returns empty array when member is not in the group (EXISTS guard)", async () => {
+    // USER_ID_3 is not a group member
+    const USER_ID_3 = "user-not-member";
+    const now = new Date().toISOString();
+    await db.$client.execute({
+      sql: `INSERT INTO "user"(id, name, email, emailVerified, image, createdAt, updatedAt) VALUES (?, ?, ?, 0, NULL, ?, ?)`,
+      args: [USER_ID_3, "Not Member", "notmember@test.com", now, now],
+    });
+    await repo.upsert({ userId: USER_ID_3, matchId: MATCH_ID, homeGoals: 2, awayGoals: 1 });
+
+    // USER_ID_3 is not in GROUP_ID → should return empty
+    const entries = await repo.getMemberPredictions(USER_ID_3, GROUP_ID, TOURNAMENT_ID);
+    expect(entries).toHaveLength(0);
+  });
+
+  it("does NOT return predictions for scheduled matches", async () => {
+    // Insert a scheduled match and predict it
+    const now = new Date().toISOString();
+    await db.$client.execute({
+      sql: `INSERT INTO match(id, tournament_id, home_team_id, away_team_id, kickoff_utc, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      args: ["match-scheduled-test", TOURNAMENT_ID, HOME_TEAM, AWAY_TEAM, "2026-12-01T18:00:00Z", "scheduled", now],
+    });
+    await repo.upsert({ userId: USER_ID_1, matchId: "match-scheduled-test", homeGoals: 1, awayGoals: 0 });
+
+    const entries = await repo.getMemberPredictions(USER_ID_1, GROUP_ID, TOURNAMENT_ID);
+
+    // The scheduled match prediction should NOT appear
+    expect(entries.every((e) => e.status !== "scheduled")).toBe(true);
+  });
+});
