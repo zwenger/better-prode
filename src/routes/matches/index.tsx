@@ -34,6 +34,8 @@ import { AppShell } from "#/components/app-shell";
 import { PredictionDrawer } from "#/components/prediction-drawer";
 import { score } from "#/domain/scoring";
 import type { GoalCount } from "#/domain/scoring";
+import { TeamButton } from "#/components/team-button";
+import { TeamSheet } from "#/components/team-sheet";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -124,34 +126,6 @@ function getOutcome(g: GoalCount): "home" | "draw" | "away" {
   if (g.homeGoals > g.awayGoals) return "home";
   if (g.homeGoals < g.awayGoals) return "away";
   return "draw";
-}
-
-// ---------------------------------------------------------------------------
-// Shared sub-components
-// ---------------------------------------------------------------------------
-
-function TeamFlagWithName({
-  name,
-  code,
-  align,
-}: {
-  name: string;
-  code: string | null;
-  align: "left" | "right";
-}) {
-  return (
-    <div
-      className={`flex items-center gap-2 flex-1 min-w-0 ${align === "right" ? "justify-end text-right" : "justify-start"}`}
-    >
-      {align === "right" && (
-        <span className="font-medium truncate text-sm">{name}</span>
-      )}
-      <TeamFlag code={code} />
-      {align === "left" && (
-        <span className="font-medium truncate text-sm">{name}</span>
-      )}
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -389,9 +363,11 @@ function ScoreBreakdown({ match }: { match: MatchListItem }) {
 function PredictableMatchCard({
   match,
   userId,
+  onTeamPress,
 }: {
   match: MatchListItem;
   userId: string | null;
+  onTeamPress: (code: string | null, name: string) => void;
 }) {
   const [homeGoals, setHomeGoals] = useState(
     match.userPrediction?.homeGoals ?? 0
@@ -440,9 +416,19 @@ function PredictableMatchCard({
 
       {/* Teams */}
       <div className="flex items-center justify-between gap-2 mb-4">
-        <TeamFlagWithName name={match.homeName} code={match.homeCode} align="left" />
+        <TeamButton
+          name={match.homeName}
+          code={match.homeCode}
+          align="left"
+          onPress={() => onTeamPress(match.homeCode, match.homeName)}
+        />
         <span className="text-xs text-muted-foreground shrink-0">vs</span>
-        <TeamFlagWithName name={match.awayName} code={match.awayCode} align="right" />
+        <TeamButton
+          name={match.awayName}
+          code={match.awayCode}
+          align="right"
+          onPress={() => onTeamPress(match.awayCode, match.awayName)}
+        />
       </div>
 
       {/* Score steppers */}
@@ -512,7 +498,13 @@ function PredictableMatchCard({
 }
 
 /** Scheduled but locked match — disabled steppers + locked indicator */
-function LockedMatchCard({ match }: { match: MatchListItem }) {
+function LockedMatchCard({
+  match,
+  onTeamPress,
+}: {
+  match: MatchListItem;
+  onTeamPress: (code: string | null, name: string) => void;
+}) {
   return (
     <article
       className="bg-card border border-border rounded-lg p-4 mb-3"
@@ -531,9 +523,19 @@ function LockedMatchCard({ match }: { match: MatchListItem }) {
 
       {/* Teams */}
       <div className="flex items-center justify-between gap-2 mb-4">
-        <TeamFlagWithName name={match.homeName} code={match.homeCode} align="left" />
+        <TeamButton
+          name={match.homeName}
+          code={match.homeCode}
+          align="left"
+          onPress={() => onTeamPress(match.homeCode, match.homeName)}
+        />
         <span className="text-xs text-muted-foreground shrink-0">vs</span>
-        <TeamFlagWithName name={match.awayName} code={match.awayCode} align="right" />
+        <TeamButton
+          name={match.awayName}
+          code={match.awayCode}
+          align="right"
+          onPress={() => onTeamPress(match.awayCode, match.awayName)}
+        />
       </div>
 
       {/* Disabled steppers (required for E2E test 4.8.4) */}
@@ -568,7 +570,13 @@ function LockedMatchCard({ match }: { match: MatchListItem }) {
 }
 
 /** In-progress match — live score */
-function LiveResultCard({ match }: { match: MatchListItem }) {
+function LiveResultCard({
+  match,
+  onTeamPress,
+}: {
+  match: MatchListItem;
+  onTeamPress: (code: string | null, name: string) => void;
+}) {
   return (
     <article
       className="bg-card border border-border rounded-lg p-4 mb-3"
@@ -587,21 +595,37 @@ function LiveResultCard({ match }: { match: MatchListItem }) {
         </span>
       </div>
       <div className="flex items-center justify-between gap-3">
-        <TeamFlagWithName name={match.homeName} code={match.homeCode} align="left" />
+        <TeamButton
+          name={match.homeName}
+          code={match.homeCode}
+          align="left"
+          onPress={() => onTeamPress(match.homeCode, match.homeName)}
+        />
         <div
           className="shrink-0 font-bold text-2xl tabular-nums font-score"
           aria-live="polite"
         >
           {match.homeScore ?? "–"} : {match.awayScore ?? "–"}
         </div>
-        <TeamFlagWithName name={match.awayName} code={match.awayCode} align="right" />
+        <TeamButton
+          name={match.awayName}
+          code={match.awayCode}
+          align="right"
+          onPress={() => onTeamPress(match.awayCode, match.awayName)}
+        />
       </div>
     </article>
   );
 }
 
 /** Finished match — score breakdown */
-function FinishedMatchCard({ match }: { match: MatchListItem }) {
+function FinishedMatchCard({
+  match,
+  onTeamPress,
+}: {
+  match: MatchListItem;
+  onTeamPress: (code: string | null, name: string) => void;
+}) {
   return (
     <article
       className="bg-card border border-border rounded-lg p-4 mb-3"
@@ -618,9 +642,19 @@ function FinishedMatchCard({ match }: { match: MatchListItem }) {
       </div>
 
       <div className="flex items-center justify-between gap-2 mb-3">
-        <TeamFlagWithName name={match.homeName} code={match.homeCode} align="left" />
+        <TeamButton
+          name={match.homeName}
+          code={match.homeCode}
+          align="left"
+          onPress={() => onTeamPress(match.homeCode, match.homeName)}
+        />
         <span className="text-xs text-muted-foreground shrink-0">vs</span>
-        <TeamFlagWithName name={match.awayName} code={match.awayCode} align="right" />
+        <TeamButton
+          name={match.awayName}
+          code={match.awayCode}
+          align="right"
+          onPress={() => onTeamPress(match.awayCode, match.awayName)}
+        />
       </div>
 
       <ScoreBreakdown match={match} />
@@ -681,6 +715,15 @@ function FilterChips({
 function MatchListPage() {
   const { matches, userId, vapidPublicKey } = Route.useLoaderData();
   const [tab, setTab] = useState<FilterTab>("all");
+  const [teamSheet, setTeamSheet] = useState<{
+    open: boolean;
+    code: string | null;
+    name: string;
+  }>({ open: false, code: null, name: "" });
+
+  const handleTeamPress = (code: string | null, name: string) => {
+    setTeamSheet({ open: true, code, name });
+  };
 
   const predictable = matches.filter((m) => m.status === "scheduled" && !m.locked);
   const locked = matches.filter((m) => m.status === "scheduled" && m.locked);
@@ -761,7 +804,12 @@ function MatchListPage() {
                 Para predecir
               </h2>
               {predictable.map((m) => (
-                <PredictableMatchCard key={m.id} match={m} userId={userId} />
+                <PredictableMatchCard
+                  key={m.id}
+                  match={m}
+                  userId={userId}
+                  onTeamPress={handleTeamPress}
+                />
               ))}
             </section>
           )}
@@ -773,7 +821,7 @@ function MatchListPage() {
                 En vivo
               </h2>
               {live.map((m) => (
-                <LiveResultCard key={m.id} match={m} />
+                <LiveResultCard key={m.id} match={m} onTeamPress={handleTeamPress} />
               ))}
             </section>
           )}
@@ -792,7 +840,7 @@ function MatchListPage() {
                 Resultados
               </h2>
               {finished.map((m) => (
-                <FinishedMatchCard key={m.id} match={m} />
+                <FinishedMatchCard key={m.id} match={m} onTeamPress={handleTeamPress} />
               ))}
             </section>
           )}
@@ -811,12 +859,19 @@ function MatchListPage() {
                 Próximos cerrados
               </h2>
               {locked.map((m) => (
-                <LockedMatchCard key={m.id} match={m} />
+                <LockedMatchCard key={m.id} match={m} onTeamPress={handleTeamPress} />
               ))}
             </section>
           )}
         </div>
       </div>
+
+      <TeamSheet
+        open={teamSheet.open}
+        onOpenChange={(open) => setTeamSheet((prev) => ({ ...prev, open }))}
+        teamCode={teamSheet.code}
+        teamName={teamSheet.name}
+      />
     </AppShell>
   );
 }

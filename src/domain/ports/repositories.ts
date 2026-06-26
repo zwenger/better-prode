@@ -22,6 +22,23 @@ export { DuplicatePredictionError } from "#/domain/ports/duplicate-prediction";
 /**
  * MatchRepository port — read/write match records.
  */
+/**
+ * DTO for a match row with team names/codes resolved — returned by getTeamMatches.
+ * Defined in the port so domain and adapters share a single source of truth.
+ */
+export interface TeamMatchRow {
+  id: string;
+  homeName: string;
+  homeCode: string | null;
+  awayName: string;
+  awayCode: string | null;
+  kickoffUtc: string;
+  status: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  groupLabel: string | null;
+}
+
 export interface MatchRepository {
   getById: (id: string) => Promise<MatchRecord | null>;
   updateResult: (
@@ -33,6 +50,7 @@ export interface MatchRepository {
       >
     >
   ) => Promise<void>;
+  getTeamMatches: (teamCode: string) => Promise<TeamMatchRow[]>;
 }
 
 /**
