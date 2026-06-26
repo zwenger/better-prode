@@ -5,7 +5,7 @@
  * Does NOT require any DB connection or infrastructure.
  */
 
-import type { MatchRepository, MatchRecord } from "#/domain/ports/repositories";
+import type { MatchRepository, MatchRecord, TeamMatchRow } from "#/domain/ports/repositories";
 
 export class InMemoryMatchRepository implements MatchRepository {
   private store: Map<string, MatchRecord>;
@@ -30,6 +30,10 @@ export class InMemoryMatchRepository implements MatchRepository {
     const existing = this.store.get(id);
     if (!existing) throw new Error(`InMemoryMatchRepository: match ${id} not found`);
     this.store.set(id, { ...existing, ...update });
+  }
+
+  async getTeamMatches(_teamCode: string): Promise<TeamMatchRow[]> {
+    return [];
   }
 
   /** Test helper: read the current state of a match. */
