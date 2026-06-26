@@ -15,6 +15,8 @@
  * All other requests are delegated to the official TanStack handler below.
  */
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
+import { runIngest } from "#/app/run-ingest";
+import { shouldThrottle, throttleKey } from "#/app/refresh-throttle";
 
 // S1: build-time guard — VITE_TEST_AUTH_ENABLED is only true in e2e builds
 // (`npm run build:e2e`). In production builds the constant is false, so the
@@ -43,7 +45,7 @@ const { handleSubmitPrediction } = await import(
   "./routes/api/predictions/-submit-http"
 );
 
-export default createServerEntry({
+const entry = createServerEntry({
   async fetch(request) {
     const url = new URL(request.url);
 
@@ -88,8 +90,58 @@ export default createServerEntry({
       return handleSubmitPrediction(request);
     }
 
+    // On-demand result refresh — throttled, fire-and-forget.
+    // Writes a short-TTL KV key to deduplicate concurrent viewer bursts.
+    // Returns 202 immediately; ingest runs detached in the background.
+    // Lazy import of cloudflare:workers so this handler works in all envs.
+    if (url.pathname === "/api/refresh" && request.method === "POST") {
+      const tid = process.env["TOURNAMENT_ID"] ?? "17-285023";
+
+      try {
+        const { env: workerEnv } = await import("cloudflare:workers");
+        const kv = (workerEnv as { LEADERBOARD_CACHE?: KVNamespace }).LEADERBOARD_CACHE;
+        const matchDO = (workerEnv as { MATCH_DO?: DurableObjectNamespace }).MATCH_DO;
+
+        if (kv) {
+          const existing = await kv.get(throttleKey(tid));
+          if (shouldThrottle(existing)) {
+            return Response.json({}, { status: 202 });
+          }
+          // Write throttle key (TTL 60s) before firing to prevent concurrent ingests
+          await kv.put(throttleKey(tid), "1", { expirationTtl: 60 });
+        }
+
+        if (matchDO) {
+          void runIngest({ MATCH_DO: matchDO }, tid);
+        }
+      } catch {
+        // Not in a Workers environment (e.g. SSR build) — skip gracefully
+      }
+
+      return Response.json({}, { status: 202 });
+    }
+
     return handler.fetch(request);
   },
 });
+
+export default {
+  ...entry,
+
+  // Cloudflare Workers scheduled() handler — fired by the cron trigger.
+  // Cadence: every 5 minutes (see wrangler.jsonc triggers.crons, pattern "* /5 * * * *").
+  //
+  // Design decision #1 (result-refresh): ctx.waitUntil keeps the worker alive
+  // until runIngest completes. The cron does NOT consult the throttle key —
+  // only the on-demand /api/refresh path throttles (to dedupe viewer bursts).
+  async scheduled(
+    _event: ScheduledEvent,
+    env: { MATCH_DO: DurableObjectNamespace; TOURNAMENT_ID?: string },
+    ctx: ExecutionContext
+  ): Promise<void> {
+    const tid = env.TOURNAMENT_ID ?? process.env["TOURNAMENT_ID"] ?? "17-285023";
+    ctx.waitUntil(runIngest(env, tid));
+  },
+};
 
 export { MatchDO } from "./workers/match-do";

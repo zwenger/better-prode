@@ -13,5 +13,7 @@ declare namespace Cloudflare {
     TURSO_DATABASE_URL: string;
     /** Turso/libSQL auth token — passed as a secret var to the DO for DB settlement. */
     TURSO_AUTH_TOKEN: string;
+    /** Tournament DB id (e.g. "17-285023") — used by cron and on-demand refresh to scope listUnsettled. */
+    TOURNAMENT_ID?: string;
   }
 }
