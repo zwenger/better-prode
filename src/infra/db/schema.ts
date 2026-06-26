@@ -131,6 +131,28 @@ export const invitation = sqliteTable("invitation", {
 });
 
 // ---------------------------------------------------------------------------
+// Push subscription table (snake_case columns — 0004_push_subscriptions.sql)
+// ---------------------------------------------------------------------------
+
+export const pushSubscription = sqliteTable(
+  "push_subscription",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("push_subscription_user_id_unique").on(t.userId),
+    index("idx_push_subscription_user").on(t.userId),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // Better Auth tables (camelCase columns — 0002_better_auth_tables.sql)
 // ---------------------------------------------------------------------------
 

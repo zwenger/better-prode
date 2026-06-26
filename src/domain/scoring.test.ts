@@ -121,3 +121,81 @@ describe("score(pred, result)", () => {
     expect([...achievable].sort((a, b) => a - b)).toEqual([0, 1, 3, 4, 7]);
   });
 });
+
+/**
+ * Task 3.10 — Exhaustive 6×6 scoring matrix CI gate.
+ *
+ * Explicit it.each table: all 36 prediction combinations against a fixed
+ * result of 2-1 (home win). Expected values computed from the rule set:
+ *   7 = pleno, 4 = outcome+1exact, 3 = outcome only, 1 = 1exact only, 0 = nothing.
+ *
+ * This table makes every reachable/unreachable value visible to the reviewer
+ * and fails immediately if any rule change silently alters a score.
+ *
+ * Impossibles (2, 5, 6) never appear as expected values — if a rule change
+ * accidentally produces them, the table will catch it on the wrong case.
+ */
+describe("score — exhaustive 6×6 matrix against result 2-1 (home win)", () => {
+  // [predHome, predAway, expected]
+  // Result is fixed: homeGoals=2, awayGoals=1
+  const RESULT = { homeGoals: 2, awayGoals: 1 };
+
+  it.each<[number, number, number]>([
+    // predHome=0
+    [0, 0, 0], // away loss wrong, no exact → 0
+    [0, 1, 1], // away loss wrong, exact away (1=1) → 1
+    [0, 2, 0], // away loss wrong, no exact → 0
+    [0, 3, 0], // away loss wrong, no exact → 0
+    [0, 4, 0], // away loss wrong, no exact → 0
+    [0, 5, 0], // away loss wrong, no exact → 0
+    // predHome=1
+    [1, 0, 3], // home win correct, no exact goals → 3
+    [1, 1, 1], // draw pred wrong (result is home win), exact away (1=1) → 0+0+1=1
+    [1, 2, 0], // draw wrong, no exact → 0
+    [1, 3, 0], // away win wrong, no exact → 0
+    [1, 4, 0], // away win wrong, no exact → 0
+    [1, 5, 0], // away win wrong, no exact → 0
+    // predHome=2
+    [2, 0, 4], // home win correct, exact home (2=2) → 3+1=4
+    [2, 1, 7], // pleno: 2=2 and 1=1 → 7
+    [2, 2, 1], // draw wrong, exact home (2=2) → 1
+    [2, 3, 1], // away win wrong, exact home (2=2) → 1
+    [2, 4, 1], // away win wrong, exact home (2=2) → 1
+    [2, 5, 1], // away win wrong, exact home (2=2) → 1
+    // predHome=3
+    [3, 0, 3], // home win correct, no exact → 3
+    [3, 1, 4], // home win correct, exact away (1=1) → 3+1=4
+    [3, 2, 3], // home win correct, no exact → 3
+    [3, 3, 0], // draw wrong, no exact → 0
+    [3, 4, 0], // away win wrong, no exact → 0
+    [3, 5, 0], // away win wrong, no exact → 0
+    // predHome=4
+    [4, 0, 3], // home win correct, no exact → 3
+    [4, 1, 4], // home win correct, exact away (1=1) → 3+1=4
+    [4, 2, 3], // home win correct, no exact → 3
+    [4, 3, 3], // home win correct, no exact → 3
+    [4, 4, 0], // draw wrong, no exact → 0
+    [4, 5, 0], // away win wrong, no exact → 0
+    // predHome=5
+    [5, 0, 3], // home win correct, no exact → 3
+    [5, 1, 4], // home win correct, exact away (1=1) → 3+1=4
+    [5, 2, 3], // home win correct, no exact → 3
+    [5, 3, 3], // home win correct, no exact → 3
+    [5, 4, 3], // home win correct, no exact → 3
+    [5, 5, 0], // draw wrong, no exact → 0
+  ])("score(pred %i-%i, result 2-1) === %i", (predHome, predAway, expected) => {
+    expect(score({ homeGoals: predHome, awayGoals: predAway }, RESULT)).toBe(expected);
+  });
+
+  it("impossible scores (2, 5, 6) are absent from the full matrix output against 2-1", () => {
+    const seen = new Set<number>();
+    for (let ph = 0; ph <= 5; ph++) {
+      for (let pa = 0; pa <= 5; pa++) {
+        seen.add(score({ homeGoals: ph, awayGoals: pa }, RESULT));
+      }
+    }
+    expect(seen).not.toContain(2);
+    expect(seen).not.toContain(5);
+    expect(seen).not.toContain(6);
+  });
+});

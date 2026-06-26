@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   applyMatchResult
-  
-  
-  
+
+
+
 } from "./apply-match-result";
 import type {MatchRecord, PredictionRecord, ApplyMatchResultPorts} from "./apply-match-result";
 import { FakeClock } from "./ports/clock";
+import type { LeaderboardCache } from "./ports/leaderboard-cache";
 
 /**
  * TDD: applyMatchResult choke point tests (task 1.5 RED → 1.6 GREEN)
@@ -258,5 +259,147 @@ describe("applyMatchResult", () => {
         clock
       )
     ).rejects.toThrow("Match not found: missing-match");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cache invalidation tests (W-1 fix)
+//
+// Spec (leaderboard): "The cache MUST be invalidated whenever applyMatchResult
+// completes and writes new point values."
+//
+// Design: applyMatchResult accepts an optional LeaderboardCache + a function to
+// enumerate affected groupIds. On a finishing settlement, it calls
+// cache.invalidate(groupId, tournamentId) for each affected group.
+// Idempotent no-ops must NOT trigger invalidation.
+// ---------------------------------------------------------------------------
+
+function makeFakeCache(): LeaderboardCache & {
+  invalidateCalls: Array<{ groupId: string; tournamentId: string }>;
+} {
+  const invalidateCalls: Array<{ groupId: string; tournamentId: string }> = [];
+  return {
+    invalidateCalls,
+    async get() { return null; },
+    async set() {},
+    async invalidate(groupId: string, tournamentId: string) {
+      invalidateCalls.push({ groupId, tournamentId });
+    },
+  };
+}
+
+describe("applyMatchResult — cache invalidation (W-1)", () => {
+  let clock: FakeClock;
+
+  beforeEach(() => {
+    clock = new FakeClock(NOW);
+  });
+
+  it("calls cache.invalidate for each affected group on a finishing settlement", async () => {
+    const match = makeMatch({ status: "finished" });
+    const ports = makePorts(match, []);
+    const cache = makeFakeCache();
+    const groupIds = ["group-1", "group-2"];
+
+    await applyMatchResult(
+      { matchId: "match-1", homeScore: 2, awayScore: 1, status: "finished", source: "auto" },
+      ports,
+      clock,
+      { cache, listGroupIdsByTournament: async (_tid: string) => groupIds }
+    );
+
+    expect(cache.invalidateCalls).toHaveLength(2);
+    expect(cache.invalidateCalls).toContainEqual({ groupId: "group-1", tournamentId: "tournament-1" });
+    expect(cache.invalidateCalls).toContainEqual({ groupId: "group-2", tournamentId: "tournament-1" });
+  });
+
+  it("does NOT call cache.invalidate on an idempotent no-op (same score + source)", async () => {
+    // Already settled with identical result
+    const match = makeMatch({
+      status: "finished",
+      homeScore: 1,
+      awayScore: 0,
+      resultSource: "auto",
+      settledAt: "2026-06-15T19:00:00.000Z",
+    });
+    const ports = {
+      matchRepository: {
+        getById: async (_id: string) => ({ ...match }),
+        updateResult: async (_id: string, _update: Partial<MatchRecord>) => {},
+      },
+      predictionRepository: {
+        listByMatch: async (_matchId: string) => [],
+        updatePoints: async (_predId: string, _points: number) => {},
+      },
+    };
+    const cache = makeFakeCache();
+
+    await applyMatchResult(
+      { matchId: "match-1", homeScore: 1, awayScore: 0, status: "finished", source: "auto" },
+      ports,
+      clock,
+      { cache, listGroupIdsByTournament: async (_tid: string) => ["group-1"] }
+    );
+
+    expect(cache.invalidateCalls).toHaveLength(0);
+  });
+
+  it("does NOT call cache.invalidate on a manual-pin no-op (auto blocked)", async () => {
+    const match = makeMatch({
+      status: "finished",
+      homeScore: 2,
+      awayScore: 1,
+      resultSource: "manual",
+      settledAt: "2026-06-15T19:00:00.000Z",
+    });
+    const ports = {
+      matchRepository: {
+        getById: async (_id: string) => ({ ...match }),
+        updateResult: async (_id: string, _update: Partial<MatchRecord>) => {},
+      },
+      predictionRepository: {
+        listByMatch: async (_matchId: string) => [],
+        updatePoints: async (_predId: string, _points: number) => {},
+      },
+    };
+    const cache = makeFakeCache();
+
+    await applyMatchResult(
+      { matchId: "match-1", homeScore: 0, awayScore: 0, status: "finished", source: "auto" },
+      ports,
+      clock,
+      { cache, listGroupIdsByTournament: async (_tid: string) => ["group-1"] }
+    );
+
+    expect(cache.invalidateCalls).toHaveLength(0);
+  });
+
+  it("does NOT call cache.invalidate for non-finished status updates (in_progress)", async () => {
+    const match = makeMatch({ status: "scheduled" });
+    const ports = makePorts(match, []);
+    const cache = makeFakeCache();
+
+    await applyMatchResult(
+      { matchId: "match-1", homeScore: 1, awayScore: 0, status: "in_progress", source: "auto" },
+      ports,
+      clock,
+      { cache, listGroupIdsByTournament: async (_tid: string) => ["group-1"] }
+    );
+
+    expect(cache.invalidateCalls).toHaveLength(0);
+  });
+
+  it("works with no cache options provided (backward compatible — no error)", async () => {
+    const match = makeMatch({ status: "finished" });
+    const ports = makePorts(match, []);
+
+    // No cache argument — existing callers without cache still work
+    await expect(
+      applyMatchResult(
+        { matchId: "match-1", homeScore: 2, awayScore: 1, status: "finished", source: "auto" },
+        ports,
+        clock
+      )
+    ).resolves.not.toThrow();
   });
 });

@@ -209,6 +209,32 @@ describe("DrizzlePredictionRepository", () => {
     expect(all).toHaveLength(1);
   });
 
+  // W-3: Verify the LEFT JOIN guarantee — a group member with zero predictions
+  // must still appear in the leaderboard with totalPoints === 0.
+  it("leaderboard SUM: member with no predictions appears with totalPoints 0 (LEFT JOIN guarantee)", async () => {
+    // USER_ID_1 has a prediction with points; USER_ID_2 has no predictions at all.
+    const pred1 = await repo.upsert({
+      userId: USER_ID_1,
+      matchId: MATCH_ID,
+      homeGoals: 1,
+      awayGoals: 0,
+    });
+    await repo.updatePoints(pred1.id, 7);
+
+    // USER_ID_2 is a group member (seeded in seedFixtures) but has no prediction.
+    const leaderboard = await repo.getLeaderboard(GROUP_ID, TOURNAMENT_ID);
+
+    // Both members must appear
+    expect(leaderboard.length).toBeGreaterThanOrEqual(2);
+
+    const u1Entry = leaderboard.find((e) => e.userId === USER_ID_1);
+    const u2Entry = leaderboard.find((e) => e.userId === USER_ID_2);
+
+    // u1 has points; u2 has zero (LEFT JOIN → COALESCE(SUM(null),0) = 0)
+    expect(u1Entry!.totalPoints).toBe(7);
+    expect(u2Entry!.totalPoints).toBe(0);
+  });
+
   it("leaderboard SUM: sum of points per user in a group for a tournament", async () => {
     const pred1 = await repo.upsert({
       userId: USER_ID_1,
@@ -234,5 +260,144 @@ describe("DrizzlePredictionRepository", () => {
 
     expect(u1Entry!.totalPoints).toBe(7);
     expect(u2Entry!.totalPoints).toBe(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// W-4: getMatchLeaderboard — per-match points breakdown for group members.
+//   Spec: "users see each group member's points for a specific match."
+//   RED first → then implementation.
+// ---------------------------------------------------------------------------
+
+describe("DrizzlePredictionRepository.getMatchLeaderboard (W-4)", () => {
+  const MATCH_ID_LB = MATCH_ID; // reuse the match seeded in seedFixtures
+
+  beforeEach(async () => {
+    db = await createTestDb();
+    repo = new DrizzlePredictionRepository(db);
+    await seedFixtures(db.$client);
+  });
+
+  it("returns each group member's prediction and points for a specific match", async () => {
+    // user 1 has a prediction with points; user 2 also has one
+    const p1 = await repo.upsert({ userId: USER_ID_1, matchId: MATCH_ID_LB, homeGoals: 2, awayGoals: 1 });
+    const p2 = await repo.upsert({ userId: USER_ID_2, matchId: MATCH_ID_LB, homeGoals: 0, awayGoals: 0 });
+    await repo.updatePoints(p1.id, 7);
+    await repo.updatePoints(p2.id, 1);
+
+    const breakdown = await repo.getMatchLeaderboard(GROUP_ID, MATCH_ID_LB);
+
+    expect(breakdown).toHaveLength(2);
+    const e1 = breakdown.find((e) => e.userId === USER_ID_1);
+    const e2 = breakdown.find((e) => e.userId === USER_ID_2);
+    expect(e1).toMatchObject({ homeGoals: 2, awayGoals: 1, points: 7 });
+    expect(e2).toMatchObject({ homeGoals: 0, awayGoals: 0, points: 1 });
+  });
+
+  it("returns null homeGoals/awayGoals/points for a member who has no prediction for the match", async () => {
+    // user 1 predicts; user 2 does not
+    const p1 = await repo.upsert({ userId: USER_ID_1, matchId: MATCH_ID_LB, homeGoals: 1, awayGoals: 0 });
+    await repo.updatePoints(p1.id, 4);
+
+    const breakdown = await repo.getMatchLeaderboard(GROUP_ID, MATCH_ID_LB);
+
+    expect(breakdown).toHaveLength(2);
+    const e1 = breakdown.find((e) => e.userId === USER_ID_1);
+    const e2 = breakdown.find((e) => e.userId === USER_ID_2);
+    expect(e1).toMatchObject({ homeGoals: 1, awayGoals: 0, points: 4 });
+    // user 2 has no prediction → nulls
+    expect(e2!.homeGoals).toBeNull();
+    expect(e2!.awayGoals).toBeNull();
+    expect(e2!.points).toBeNull();
+  });
+
+  it("returns all group members even when nobody has predicted the match", async () => {
+    const breakdown = await repo.getMatchLeaderboard(GROUP_ID, MATCH_ID_LB);
+    // Both members appear (LEFT JOIN)
+    expect(breakdown).toHaveLength(2);
+    for (const e of breakdown) {
+      expect(e.homeGoals).toBeNull();
+      expect(e.awayGoals).toBeNull();
+      expect(e.points).toBeNull();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 4.6: findByUserForMatches — batch lookup of user's predictions
+//   RED tests written first (TDD); implementation in prediction-repository.ts
+// ---------------------------------------------------------------------------
+
+describe("DrizzlePredictionRepository.findByUserForMatches", () => {
+  let db2: DrizzleDb & { $client: Client };
+  let repo2: DrizzlePredictionRepository;
+  const TID = "t-find";
+  const HOME = "home-find";
+  const AWAY = "away-find";
+  const M1 = "match-find-1";
+  const M2 = "match-find-2";
+  const M3 = "match-find-3";
+  const U1 = "user-find-1";
+  const U2 = "user-find-2";
+
+  beforeEach(async () => {
+    db2 = await createTestDb();
+    repo2 = new DrizzlePredictionRepository(db2);
+    const now = new Date().toISOString();
+    const c = db2.$client;
+
+    await c.execute({ sql: `INSERT INTO tournament(id, name, created_at) VALUES (?, ?, ?)`, args: [TID, "Find T", now] });
+    await c.execute({ sql: `INSERT INTO team(id, tournament_id, name, code) VALUES (?, ?, ?, ?)`, args: [HOME, TID, "Home Find", "HF"] });
+    await c.execute({ sql: `INSERT INTO team(id, tournament_id, name, code) VALUES (?, ?, ?, ?)`, args: [AWAY, TID, "Away Find", "AF"] });
+    for (const mid of [M1, M2, M3]) {
+      await c.execute({ sql: `INSERT INTO match(id, tournament_id, home_team_id, away_team_id, kickoff_utc, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`, args: [mid, TID, HOME, AWAY, "2026-07-01T18:00:00Z", "scheduled", now] });
+    }
+    await c.execute({ sql: `INSERT INTO "user"(id, name, email, emailVerified, image, createdAt, updatedAt) VALUES (?, ?, ?, 0, NULL, ?, ?)`, args: [U1, "Find User 1", "find1@test.com", now, now] });
+    await c.execute({ sql: `INSERT INTO "user"(id, name, email, emailVerified, image, createdAt, updatedAt) VALUES (?, ?, ?, 0, NULL, ?, ?)`, args: [U2, "Find User 2", "find2@test.com", now, now] });
+  });
+
+  it("returns an empty map when the user has no predictions for any of the given matches", async () => {
+    const result = await repo2.findByUserForMatches(U1, [M1, M2]);
+    expect(result.size).toBe(0);
+  });
+
+  it("returns predictions keyed by matchId for the given user", async () => {
+    await repo2.upsert({ userId: U1, matchId: M1, homeGoals: 2, awayGoals: 1 });
+    await repo2.upsert({ userId: U1, matchId: M2, homeGoals: 0, awayGoals: 0 });
+
+    const result = await repo2.findByUserForMatches(U1, [M1, M2, M3]);
+
+    expect(result.size).toBe(2);
+    expect(result.get(M1)).toMatchObject({ homeGoals: 2, awayGoals: 1 });
+    expect(result.get(M2)).toMatchObject({ homeGoals: 0, awayGoals: 0 });
+    expect(result.get(M3)).toBeUndefined();
+  });
+
+  it("does NOT return predictions from another user", async () => {
+    await repo2.upsert({ userId: U2, matchId: M1, homeGoals: 3, awayGoals: 1 });
+
+    const result = await repo2.findByUserForMatches(U1, [M1]);
+    expect(result.size).toBe(0);
+  });
+
+  it("handles empty matchIds array by returning an empty map without error", async () => {
+    await repo2.upsert({ userId: U1, matchId: M1, homeGoals: 1, awayGoals: 0 });
+
+    const result = await repo2.findByUserForMatches(U1, []);
+    expect(result.size).toBe(0);
+  });
+
+  it("only returns predictions for the subset of matchIds passed in", async () => {
+    await repo2.upsert({ userId: U1, matchId: M1, homeGoals: 1, awayGoals: 0 });
+    await repo2.upsert({ userId: U1, matchId: M2, homeGoals: 2, awayGoals: 2 });
+    await repo2.upsert({ userId: U1, matchId: M3, homeGoals: 3, awayGoals: 1 });
+
+    // Only ask for M1 + M3
+    const result = await repo2.findByUserForMatches(U1, [M1, M3]);
+
+    expect(result.size).toBe(2);
+    expect(result.has(M2)).toBe(false);
+    expect(result.get(M1)).toMatchObject({ homeGoals: 1, awayGoals: 0 });
+    expect(result.get(M3)).toMatchObject({ homeGoals: 3, awayGoals: 1 });
   });
 });

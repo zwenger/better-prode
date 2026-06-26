@@ -53,6 +53,7 @@ export async function createTestDb(): Promise<DrizzleDb & { $client: Client }> {
   await runMigrationFile(client, join(migrationsDir, "0001_init.sql"));
   await runMigrationFile(client, join(migrationsDir, "0002_better_auth_tables.sql"));
   await runMigrationFile(client, join(migrationsDir, "0003_match_group_stage.sql"));
+  await runMigrationFile(client, join(migrationsDir, "0004_push_subscriptions.sql"));
 
   const db = createDrizzleDb(client);
   // Expose the underlying client for test fixtures that use raw SQL inserts.
