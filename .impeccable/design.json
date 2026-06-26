@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-26T00:00:00.000Z",
+  "title": "Design System: better-prode",
+  "extensions": {
+    "colorMeta": {
+      "pitch-green": { "role": "primary", "displayName": "Pitch Green", "canonical": "oklch(0.48 0.12 150)", "tonalRamp": ["oklch(0.18 0.06 150)", "oklch(0.28 0.09 150)", "oklch(0.38 0.11 150)", "oklch(0.48 0.12 150)", "oklch(0.58 0.13 150)", "oklch(0.70 0.10 150)", "oklch(0.85 0.06 150)", "oklch(0.96 0.03 150)"] },
+      "glory-gold": { "role": "secondary", "displayName": "Glory Gold", "canonical": "oklch(0.82 0.13 84)", "tonalRamp": ["oklch(0.34 0.06 70)", "oklch(0.46 0.09 78)", "oklch(0.58 0.11 80)", "oklch(0.70 0.13 82)", "oklch(0.82 0.13 84)", "oklch(0.89 0.10 86)", "oklch(0.94 0.06 88)", "oklch(0.98 0.03 90)"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "oklch(0.22 0.015 152)", "tonalRamp": ["oklch(0.22 0.015 152)", "oklch(0.34 0.014 152)", "oklch(0.46 0.012 152)", "oklch(0.60 0.010 152)", "oklch(0.74 0.008 152)", "oklch(0.86 0.006 152)", "oklch(0.94 0.005 152)", "oklch(1 0 0)"] },
+      "miss-red": { "role": "tertiary", "displayName": "Miss Red", "canonical": "oklch(0.56 0.20 27)", "tonalRamp": ["oklch(0.30 0.12 27)", "oklch(0.40 0.16 27)", "oklch(0.48 0.18 27)", "oklch(0.56 0.20 27)", "oklch(0.66 0.18 27)", "oklch(0.78 0.12 26)", "oklch(0.90 0.07 25)", "oklch(0.96 0.04 25)"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display (Archivo)", "purpose": "Screen titles and the rare hero. Sporting grotesque, tight tracking." },
+      "score": { "displayName": "Score (Archivo tabular)", "purpose": "Every goal/score/point total. Tabular figures so columns align." },
+      "body": { "displayName": "Body (Inter)", "purpose": "Dense UI and data at small sizes where legibility wins." },
+      "label": { "displayName": "Label (Inter 600)", "purpose": "Metadata, chips, dates, the L/E/V outcome letters." }
+    },
+    "shadows": [
+      { "name": "lifted", "value": "0 1px 2px oklch(0.22 0.015 152 / 0.06), 0 2px 8px oklch(0.22 0.015 152 / 0.08)", "purpose": "Bottom tab bar and sticky headers — minimal separation from scrolling content." },
+      { "name": "sheet", "value": "0 -8px 32px oklch(0.22 0.015 152 / 0.18)", "purpose": "Bottom sheets rising over the backdrop. The only strong shadow." }
+    ],
+    "motion": [
+      { "name": "ease-out-quart", "value": "cubic-bezier(0.25, 1, 0.5, 1)", "purpose": "Default easing for state transitions and sheet entrances. No bounce." },
+      { "name": "dur-fast", "value": "150ms", "purpose": "Button/chip state changes, focus rings." },
+      { "name": "dur-sheet", "value": "280ms", "purpose": "Bottom sheet slide-up; crossfade fallback under prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "375px" },
+      { "name": "sm", "value": "640px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one strong action per context (Guardar predicción). Pitch green, white label.",
+      "html": "<button class=\"ds-btn-primary\">Guardar predicción</button>",
+      "css": ".ds-btn-primary { font-family: Inter, system-ui, sans-serif; font-weight: 600; font-size: 0.875rem; color: oklch(1 0 0); background: oklch(0.48 0.12 150); border: none; border-radius: 12px; padding: 12px 20px; cursor: pointer; transition: background 150ms cubic-bezier(0.25,1,0.5,1); } .ds-btn-primary:hover { background: oklch(0.42 0.12 150); } .ds-btn-primary:focus-visible { outline: 2px solid oklch(0.48 0.12 150); outline-offset: 2px; } .ds-btn-primary:active { background: oklch(0.42 0.12 150); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Low-emphasis actions (Editar, Invitar). Transparent with green ink and hairline.",
+      "html": "<button class=\"ds-btn-ghost\">Editar predicción</button>",
+      "css": ".ds-btn-ghost { font-family: Inter, system-ui, sans-serif; font-weight: 600; font-size: 0.875rem; color: oklch(0.38 0.10 150); background: oklch(1 0 0); border: 1px solid oklch(0.91 0.006 152); border-radius: 12px; padding: 12px 20px; cursor: pointer; transition: background 150ms cubic-bezier(0.25,1,0.5,1); } .ds-btn-ghost:hover { background: oklch(0.975 0.008 150); } .ds-btn-ghost:focus-visible { outline: 2px solid oklch(0.48 0.12 150); outline-offset: 2px; }"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "chip-filter",
+      "description": "Filter and group-selector pills. Unselected subtle; selected pitch green.",
+      "html": "<div style=\"display:flex;gap:8px\"><button class=\"ds-chip\">Todos</button><button class=\"ds-chip ds-chip--selected\">Por predecir</button><button class=\"ds-chip\">Resultados</button></div>",
+      "css": ".ds-chip { font-family: Inter, system-ui, sans-serif; font-weight: 600; font-size: 0.75rem; color: oklch(0.46 0.012 152); background: oklch(0.975 0.008 150); border: none; border-radius: 9999px; padding: 6px 14px; cursor: pointer; transition: background 150ms cubic-bezier(0.25,1,0.5,1); } .ds-chip--selected { background: oklch(0.48 0.12 150); color: oklch(1 0 0); } .ds-chip:focus-visible { outline: 2px solid oklch(0.48 0.12 150); outline-offset: 2px; }"
+    },
+    {
+      "name": "Match Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Resting container. White, hairline border, no shadow, generous padding.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card__meta\">Grupo A · Vie 26 jun · 17:00</div><div class=\"ds-card__teams\">🇲🇽 México <span class=\"ds-card__vs\">vs</span> Sudáfrica 🇿🇦</div></div>",
+      "css": ".ds-card { background: oklch(1 0 0); border: 1px solid oklch(0.91 0.006 152); border-radius: 16px; padding: 16px; } .ds-card__meta { font-family: Inter, system-ui, sans-serif; font-weight: 600; font-size: 0.75rem; color: oklch(0.46 0.012 152); margin-bottom: 10px; } .ds-card__teams { font-family: Archivo, system-ui, sans-serif; font-weight: 700; font-size: 1.125rem; color: oklch(0.22 0.015 152); display: flex; align-items: center; gap: 8px; } .ds-card__vs { font-family: Inter, system-ui, sans-serif; font-weight: 600; font-size: 0.75rem; color: oklch(0.46 0.012 152); }"
+    },
+    {
+      "name": "Score Breakdown Row",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Signature. A finished match: pick cells [home][L/E/V][away] each green/red with check/cross, plus Res and points. This example shows a partial hit (home goal right, away goal wrong, outcome right).",
+      "html": "<div class=\"ds-bd\"><span class=\"ds-bd__team\">🇲🇽 MX</span><span class=\"ds-bd__cell ds-bd__cell--ok\">2<sup>✓</sup></span><span class=\"ds-bd__cell ds-bd__cell--ok\">V<sup>✓</sup></span><span class=\"ds-bd__cell ds-bd__cell--miss\">0<sup>✗</sup></span><span class=\"ds-bd__team\">ZA 🇿🇦</span><span class=\"ds-bd__res\">Res 0–2</span><span class=\"ds-bd__pts\">+4</span></div>",
+      "css": ".ds-bd { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; background: oklch(1 0 0); border: 1px solid oklch(0.91 0.006 152); border-radius: 16px; padding: 14px; font-family: Inter, system-ui, sans-serif; } .ds-bd__team { font-weight: 700; font-size: 0.8125rem; color: oklch(0.22 0.015 152); } .ds-bd__cell { font-family: Archivo, system-ui, sans-serif; font-weight: 700; font-size: 1rem; font-feature-settings: 'tnum'; min-width: 32px; text-align: center; padding: 4px 8px; border-radius: 8px; position: relative; } .ds-bd__cell sup { font-size: 0.6rem; margin-left: 1px; } .ds-bd__cell--ok { background: oklch(0.95 0.04 150); color: oklch(0.38 0.10 150); } .ds-bd__cell--miss { background: oklch(0.95 0.05 25); color: oklch(0.45 0.16 27); } .ds-bd__res { font-weight: 600; font-size: 0.8125rem; color: oklch(0.46 0.012 152); margin-left: auto; } .ds-bd__pts { font-family: Archivo, system-ui, sans-serif; font-weight: 700; font-size: 0.875rem; color: oklch(0.38 0.10 150); background: oklch(0.95 0.04 150); border-radius: 9999px; padding: 4px 10px; }"
+    },
+    {
+      "name": "Pleno Badge",
+      "kind": "custom",
+      "refersTo": "pleno-badge",
+      "description": "Signature. The crown — gold pill, only for an exact-score pleno (7 pts).",
+      "html": "<span class=\"ds-pleno\">PLENO ✦ +7</span>",
+      "css": ".ds-pleno { font-family: Inter, system-ui, sans-serif; font-weight: 700; font-size: 0.75rem; color: oklch(0.34 0.06 70); background: oklch(0.82 0.13 84); border-radius: 9999px; padding: 4px 10px; box-shadow: 0 0 0 2px oklch(0.89 0.10 86); }"
+    },
+    {
+      "name": "Bottom Tab Bar",
+      "kind": "nav",
+      "refersTo": "card",
+      "description": "Primary mobile navigation: Hoy · Partidos · Grupos. Active tab pitch green.",
+      "html": "<nav class=\"ds-tabs\"><button class=\"ds-tab ds-tab--active\">Hoy</button><button class=\"ds-tab\">Partidos</button><button class=\"ds-tab\">Grupos</button></nav>",
+      "css": ".ds-tabs { display: flex; background: oklch(1 0 0); border-top: 1px solid oklch(0.91 0.006 152); box-shadow: 0 1px 2px oklch(0.22 0.015 152 / 0.06), 0 2px 8px oklch(0.22 0.015 152 / 0.08); border-radius: 16px 16px 0 0; padding: 6px; } .ds-tab { flex: 1; min-height: 44px; font-family: Inter, system-ui, sans-serif; font-weight: 600; font-size: 0.75rem; color: oklch(0.46 0.012 152); background: none; border: none; border-radius: 12px; cursor: pointer; } .ds-tab--active { color: oklch(0.48 0.12 150); background: oklch(0.975 0.008 150); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Cancha y planilla",
+    "overview": "better-prode lives where the pitch meets the scorekeeper's ledger. The energy is football — green, competitive, the small electric thrill of nailing a score — but the surface is the calm precision of a fintech you trust with your money. Pitch green carries the brand; the surface stays pure white; gold is reserved for the pleno alone. Information is dense but the layout breathes: fintech spacing, clear hierarchy, never the cramped wall of a legacy prode. It rejects the old amontonado prode and the generic gray SaaS dashboard.",
+    "keyCharacteristics": [
+      "Pure white surface; mood carried by pitch green + gold, never a tinted background.",
+      "One confident green primary; gold spent only on plenos.",
+      "Dense but breathing — fintech rhythm over scoreboard cram.",
+      "Glanceable truth: results, picks and points read in one look (color + position + value).",
+      "Mobile-first, thumb-honest; flat by default, depth only on lifted surfaces."
+    ],
+    "rules": [
+      { "name": "The Gold-For-Glory Rule", "body": "Gold appears only on a pleno and the podium. Its scarcity is what makes a pleno feel earned.", "section": "colors" },
+      { "name": "The White-Field Rule", "body": "The body background is literal oklch(1 0 0). Warmth/identity lives in green + gold + type, never in a tinted surface.", "section": "colors" },
+      { "name": "The Tabular Score Rule", "body": "Any number representing a score, goal count, or point total uses tabular figures so columns align digit-for-digit.", "section": "typography" },
+      { "name": "The Flat-At-Rest Rule", "body": "Resting cards and rows have no shadow — separation is a hairline or a subtle band. Shadow is earned by lifting (sheet, sticky, tab bar).", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the body background pure white; carry warmth in pitch green, gold, and type.",
+      "Do reserve Glory Gold for plenos and the podium only.",
+      "Do make finished results glanceable — picks color-coded green/red with ✓/✗ and position, no tap-to-expand.",
+      "Do use tabular figures for every score, goal, and point total.",
+      "Do give cards and rows room to breathe (16px padding, hairline separation).",
+      "Do keep touch targets ≥44px with a visible pitch-green focus ring.",
+      "Do put unbounded detail (team history, a member's predictions) in a bottom sheet with vertical scroll."
+    ],
+    "donts": [
+      "Don't rebuild the amontonado legacy prode: no cramped illegible tables, no everything-fighting-for-space.",
+      "Don't ship the generic gray SaaS dashboard: no default-shadcn slate, no soulless neutral.",
+      "Don't use light elegant gray for body/muted text — muted is oklch(0.46 0.012 152) or darker.",
+      "Don't use a colored border-left/right greater than 1px as a side-stripe accent; encode outcome with cell tint + ✓/✗ + the points badge.",
+      "Don't put scores or unbounded lists in a horizontally-scrolling strip inside a card.",
+      "Don't drop shadows on resting cards; flat at rest, lift only sheets/sticky/tab bar.",
+      "Don't tint the surface warm (no cream/sand/parchment) or add hidden chroma to white.",
+      "Don't spend gold on anything that isn't a pleno or the podium."
+    ]
+  }
+}
