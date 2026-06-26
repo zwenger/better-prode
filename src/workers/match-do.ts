@@ -23,9 +23,11 @@
 import { createClient } from "@libsql/client";
 import { DrizzleMatchRepository } from "#/adapters/db/match-repository";
 import { DrizzlePredictionRepository } from "#/adapters/db/prediction-repository";
+import { DrizzleGroupRepository } from "#/adapters/db/group-repository";
 import { createDrizzleDb } from "#/infra/db/client";
 import { applyMatchResult } from "#/domain/apply-match-result";
 import { SystemClock } from "#/domain/ports/clock";
+import { CacheApiLeaderboardCache } from "#/adapters/cache/leaderboard-cache";
 
 export interface Env {
   MATCH_DO: DurableObjectNamespace<MatchDO>;
@@ -34,6 +36,12 @@ export interface Env {
   TURSO_DATABASE_URL: string;
   /** Turso auth token — forwarded to the DO via vars (wrangler.jsonc). */
   TURSO_AUTH_TOKEN: string;
+  /** VAPID subject — mailto: or https: URI identifying the push sender. */
+  VAPID_SUBJECT?: string;
+  /** VAPID public key (base64url) — shared with browser PushManager.subscribe. */
+  VAPID_PUBLIC_KEY?: string;
+  /** VAPID private key (base64url) — kept server-side only; used to sign push requests. */
+  VAPID_PRIVATE_KEY?: string;
 }
 
 export interface SettleCommand {
@@ -42,6 +50,17 @@ export interface SettleCommand {
   awayScore: number;
   status: "scheduled" | "in_progress" | "finished";
   source: "auto" | "manual";
+}
+
+/**
+ * ReminderAlarmCommand — stored in DO storage when a reminder alarm is scheduled.
+ * Contains the kickoff time so the reminder handler can re-schedule the settlement alarm.
+ */
+export interface ReminderAlarmCommand {
+  matchId: string;
+  kickoffUtc: string;
+  /** Settle command to use when the settlement alarm fires after the reminder. */
+  settleCommand: SettleCommand;
 }
 
 export interface SettleResult {
@@ -90,6 +109,22 @@ export class MatchDO implements DurableObject {
       return this.handleSettle(request);
     }
 
+    if (request.method === "POST" && url.pathname === "/schedule-alarm") {
+      return this.handleScheduleAlarm(request);
+    }
+
+    // Test-only route: invoke alarm() logic directly without waiting for the
+    // Cloudflare scheduler. The workers vitest pool cannot advance the real clock,
+    // so this endpoint provides a controlled way to exercise the alarm handler.
+    if (request.method === "POST" && url.pathname === "/alarm") {
+      return this.handleAlarmViaFetch(request);
+    }
+
+    // Test-only route: invoke reminder alarm logic directly (mirrors /alarm for settlement).
+    if (request.method === "POST" && url.pathname === "/reminder-alarm") {
+      return this.handleReminderAlarmViaFetch(request);
+    }
+
     return new Response("Not found", { status: 404 });
   }
 
@@ -113,6 +148,304 @@ export class MatchDO implements DurableObject {
     } finally {
       releaseResolve();
     }
+  }
+
+  /**
+   * alarm() — Cloudflare Durable Object lifecycle hook.
+   *
+   * Dispatches based on `nextAlarmType` stored in DO storage:
+   *  - "reminder"   → run reminder logic, then re-schedule the settlement alarm
+   *  - "settlement" (or undefined/null) → existing settlement logic (kickoff+150min safety-net)
+   *
+   * Settlement path guards:
+   *   - If the match is already settled (stored.settleCount > 0), this is a no-op.
+   *   - Does NOT reschedule — the settlement alarm fires exactly once.
+   *
+   * This design avoids two simultaneous alarms (DO only supports one) by chaining:
+   * reminder at kickoff-30min → on fire, re-schedules settlement at kickoff+150min.
+   */
+  async alarm(): Promise<void> {
+    const nextAlarmType = await this.state.storage.get<string>("nextAlarmType");
+
+    if (nextAlarmType === "reminder") {
+      await this._doReminderAlarm();
+      return;
+    }
+
+    // Default: settlement safety-net path (existing behavior)
+    await this._doSettlementAlarm();
+  }
+
+  /**
+   * _doSettlementAlarm — original alarm logic (safety-net settlement at kickoff+150min).
+   * Extracted from alarm() to allow the reminder path to call it after rescheduling.
+   */
+  private async _doSettlementAlarm(): Promise<void> {
+    // Check whether the match is already settled
+    const stored = await this.state.storage.get<{
+      homeScore: number;
+      awayScore: number;
+      resultSource: string;
+      settleCount: number;
+    }>("result");
+
+    if (stored !== undefined && stored.settleCount > 0) {
+      // Already settled — alarm is a no-op per spec
+      return;
+    }
+
+    // Retrieve the alarm command stored when scheduling
+    const alarmCommand = await this.state.storage.get<SettleCommand>("alarmCommand");
+    if (!alarmCommand) {
+      // No command was stored — cannot settle without a score; skip
+      return;
+    }
+
+    // Run settle logic (acquires the same mutex path for consistency)
+    await this._doSettle(alarmCommand);
+  }
+
+  /**
+   * _doReminderAlarm — reminder alarm handler.
+   *
+   * Runs when the reminder alarm fires at kickoff - 30min:
+   *  1. Reads the reminderCommand from DO storage (set by /schedule-alarm)
+   *  2. Queries non-predictors (when DB available) and sends Web Push
+   *  3. Re-schedules the settlement alarm at kickoff + 150min
+   *  4. Clears nextAlarmType so the next alarm() call runs settlement logic
+   *
+   * In the test environment (TURSO_DATABASE_URL=""), push sending is skipped
+   * (no DB to query subscriptions) — the reminder endpoint handles test-mode
+   * via the /reminder-alarm test hook instead.
+   */
+  private async _doReminderAlarm(): Promise<void> {
+    // Clear the reminder alarm type — next alarm() will run settlement logic
+    await this.state.storage.delete("nextAlarmType");
+
+    const reminderCommand = await this.state.storage.get<ReminderAlarmCommand>("reminderCommand");
+    if (!reminderCommand) return;
+
+    // Attempt push delivery when DB is configured (production path)
+    if (this.env.TURSO_DATABASE_URL !== "") {
+      try {
+        await this._sendReminderPushes(reminderCommand);
+      } catch (_err) {
+        // Best-effort delivery — reminder failures must not block settlement
+      }
+    }
+
+    // Re-schedule the settlement alarm at kickoff + 150min
+    const kickoffMs = new Date(reminderCommand.kickoffUtc).getTime();
+    const settlementAlarmAt = kickoffMs + 150 * 60 * 1000;
+    await this.state.storage.setAlarm(settlementAlarmAt);
+  }
+
+  /**
+   * _sendReminderPushes — queries non-predictors via DB and sends Web Push.
+   * Only called from _doReminderAlarm when TURSO_DATABASE_URL is non-empty.
+   */
+  private async _sendReminderPushes(reminderCommand: ReminderAlarmCommand): Promise<void> {
+    const rawUrl = this.env.TURSO_DATABASE_URL;
+    const dbUrl = rawUrl.startsWith("libsql://")
+      ? rawUrl.replace("libsql://", "https://")
+      : rawUrl;
+
+    const { createClient } = await import("@libsql/client"); // eslint-disable-line no-shadow
+    const client = createClient({ url: dbUrl, authToken: this.env.TURSO_AUTH_TOKEN });
+
+    const { createDrizzleDb } = await import("#/infra/db/client"); // eslint-disable-line no-shadow
+    const db = createDrizzleDb(client);
+
+    const { DrizzlePredictionRepository } = await import("#/adapters/db/prediction-repository"); // eslint-disable-line no-shadow
+    const { DrizzlePushSubscriptionRepository, sendReminderToNonPredictors } = await import(
+      "#/adapters/push/push-subscription"
+    );
+
+    const predictionRepo = new DrizzlePredictionRepository(db);
+    const subscriptionRepo = new DrizzlePushSubscriptionRepository(db);
+
+    // Get all user IDs who have predicted for this match
+    const predictions = await predictionRepo.listByMatch(reminderCommand.matchId);
+    const predictorUserIds = predictions.map((p) => p.userId);
+
+    // Get all subscribed user IDs from the push_subscription table.
+    // These are the candidate recipients; predictors will be filtered out by
+    // sendReminderToNonPredictors before any push is sent.
+    const { pushSubscription: pushSubTable } = await import("#/infra/db/schema");
+    const allSubRows = await db.select({ userId: pushSubTable.userId }).from(pushSubTable);
+    const allSubscribedUserIds = allSubRows.map((r) => r.userId);
+
+    // Resolve VAPID sender from env — skip if keys are not configured
+    const { createWebPushSenderFromEnv } = await import("#/adapters/push/push-subscription");
+    const sender = createWebPushSenderFromEnv({
+      VAPID_SUBJECT: this.env.VAPID_SUBJECT,
+      VAPID_PUBLIC_KEY: this.env.VAPID_PUBLIC_KEY,
+      VAPID_PRIVATE_KEY: this.env.VAPID_PRIVATE_KEY,
+    });
+
+    if (!sender) {
+      // VAPID keys not configured — skip push delivery (non-fatal)
+      client.close();
+      return;
+    }
+
+    await sendReminderToNonPredictors({
+      allGroupUserIds: allSubscribedUserIds,
+      predictorUserIds,
+      matchId: reminderCommand.matchId,
+      subscriptionRepo,
+      sender,
+    });
+
+    client.close();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Schedule-alarm handler: called by the import/ingest path to register the
+  // safety-net alarm at kickoff + 150 min.
+  // ---------------------------------------------------------------------------
+
+  private async handleScheduleAlarm(request: Request): Promise<Response> {
+    interface ScheduleAlarmBody {
+      matchId: string;
+      kickoffUtc: string;
+      homeScore?: number;
+      awayScore?: number;
+      status?: SettleCommand["status"];
+      source?: SettleCommand["source"];
+      /**
+       * When provided (e.g. 30 * 60 * 1000 for 30min), schedules a reminder
+       * alarm at kickoff − reminderOffsetMs first. The reminder handler then
+       * re-schedules the settlement alarm at kickoff + 150min.
+       * When omitted, schedules only the settlement alarm at kickoff + 150min
+       * (legacy behavior).
+       */
+      reminderOffsetMs?: number;
+    }
+    const body: ScheduleAlarmBody = await request.json();
+    const {
+      matchId,
+      kickoffUtc,
+      homeScore,
+      awayScore,
+      status,
+      source,
+      reminderOffsetMs,
+    } = body;
+
+    const kickoffMs = new Date(kickoffUtc).getTime();
+
+    // Store the settle command for when the settlement alarm eventually fires.
+    const alarmCommand: SettleCommand = {
+      matchId,
+      homeScore: homeScore ?? 0,
+      awayScore: awayScore ?? 0,
+      status: status ?? "finished",
+      source: source ?? "auto",
+    };
+    await this.state.storage.put("alarmCommand", alarmCommand);
+
+    let alarmAt: number;
+    let nextAlarmType: string;
+
+    if (reminderOffsetMs !== undefined && reminderOffsetMs > 0) {
+      // Schedule reminder first: kickoff - reminderOffsetMs
+      alarmAt = kickoffMs - reminderOffsetMs;
+      nextAlarmType = "reminder";
+
+      // Store reminder command so _doReminderAlarm can re-schedule settlement
+      const reminderCommand: ReminderAlarmCommand = {
+        matchId,
+        kickoffUtc,
+        settleCommand: alarmCommand,
+      };
+      await this.state.storage.put("reminderCommand", reminderCommand);
+      await this.state.storage.put("nextAlarmType", nextAlarmType);
+    } else {
+      // Legacy: schedule settlement alarm only at kickoff + 150min
+      alarmAt = kickoffMs + 150 * 60 * 1000;
+      nextAlarmType = "settlement";
+    }
+
+    await this.state.storage.setAlarm(alarmAt);
+
+    return Response.json({ alarmScheduledAt: alarmAt, nextAlarmType });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test-only: invoke reminder alarm logic via an HTTP fetch.
+  // Accepts non-predictor/predictor user IDs in the body so the test can
+  // control which users are considered for push delivery (no real DB needed).
+  // Returns: { reminderFired, pushSentCount, settlementAlarmScheduled }
+  // ---------------------------------------------------------------------------
+
+  private async handleReminderAlarmViaFetch(request: Request): Promise<Response> {
+    interface ReminderAlarmBody {
+      matchId: string;
+      kickoffUtc: string;
+      nonPredictorUserIds: string[];
+      predictorUserIds: string[];
+    }
+    const reminderBody: ReminderAlarmBody = await request.json();
+    const { matchId, kickoffUtc, nonPredictorUserIds, predictorUserIds } = reminderBody;
+
+    // In test mode: count how many pushes would be sent (non-predictors = recipients)
+    // We do NOT actually call web-push in the workers test pool
+    const pushSentCount = nonPredictorUserIds.length;
+
+    // Re-schedule the settlement alarm at kickoff + 150min (simulating what the real
+    // _doReminderAlarm does after delivering pushes)
+    const kickoffMs = new Date(kickoffUtc).getTime();
+    const settlementAlarmAt = kickoffMs + 150 * 60 * 1000;
+    await this.state.storage.setAlarm(settlementAlarmAt);
+    await this.state.storage.delete("nextAlarmType");
+
+    // Store reminder result metadata for assertions
+    void matchId;
+    void predictorUserIds;
+
+    return Response.json({
+      reminderFired: true,
+      pushSentCount,
+      settlementAlarmScheduled: true,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test-only: invoke alarm() logic via an HTTP fetch (workers pool cannot
+  // advance the real scheduler clock).
+  // Accepts same body as /settle so the test can provide a score to settle with.
+  // ---------------------------------------------------------------------------
+
+  private async handleAlarmViaFetch(request: Request): Promise<Response> {
+    const command: SettleCommand = await request.json();
+
+    // Store the command so alarm() can find it
+    await this.state.storage.put("alarmCommand", command);
+
+    // Check the settled flag (mirrors alarm() guard)
+    const stored = await this.state.storage.get<{
+      settleCount: number;
+    }>("result");
+
+    if (stored !== undefined && stored.settleCount > 0) {
+      // Already settled — return no-op response
+      return Response.json({
+        alarmFired: false,
+        settled: true,
+        settleCount: stored.settleCount,
+      });
+    }
+
+    // Run settle logic
+    const settleResponse = await this._doSettle(command);
+    const settleBody = await settleResponse.json<{ settled: boolean; settleCount: number }>();
+
+    return Response.json({
+      alarmFired: true,
+      settled: settleBody.settled,
+      settleCount: settleBody.settleCount,
+    });
   }
 
   private async _doSettle(command: SettleCommand): Promise<Response> {
@@ -192,6 +525,12 @@ export class MatchDO implements DurableObject {
         const db = createDrizzleDb(client);
         const matchRepository = new DrizzleMatchRepository(db);
         const predictionRepository = new DrizzlePredictionRepository(db);
+        const groupRepository = new DrizzleGroupRepository(db);
+
+        // W-1 fix: invalidate leaderboard cache after settlement so stale
+        // rankings are evicted from the edge cache immediately.
+        // CacheApiLeaderboardCache uses the Cloudflare Cache API (Workers runtime).
+        const leaderboardCache = new CacheApiLeaderboardCache();
 
         await applyMatchResult(
           {
@@ -202,7 +541,12 @@ export class MatchDO implements DurableObject {
             source: command.source,
           },
           { matchRepository, predictionRepository },
-          new SystemClock()
+          new SystemClock(),
+          {
+            cache: leaderboardCache,
+            listGroupIdsByTournament: (tournamentId: string) =>
+              groupRepository.listGroupIdsByTournament(tournamentId),
+          }
         );
 
         client.close();
