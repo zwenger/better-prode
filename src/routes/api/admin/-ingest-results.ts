@@ -164,20 +164,9 @@ export const ingestResults = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<IngestResultsApiOutput> => {
     // Lazy imports keep Workers-specific bindings out of the module-level
     // import graph so unit tests can import ingestMatchResults without error.
-    const [
-      { env },
-      { auth },
-      { getDb },
-      { FifaAdapter },
-      { match: matchTable },
-      { eq, inArray, lte, and },
-    ] = await Promise.all([
+    const [{ env }, { auth }] = await Promise.all([
       import("cloudflare:workers"),
       import("#/infra/auth/auth"),
-      import("#/infra/db/client"),
-      import("#/adapters/result-source/fifa"),
-      import("#/infra/db/schema"),
-      import("drizzle-orm"),
     ]);
 
     const request = getRequest();
@@ -190,52 +179,12 @@ export const ingestResults = createServerFn({ method: "GET" })
       throw new Error("Forbidden: admin only");
     }
 
-    const db = getDb();
-    const now = new Date().toISOString();
-
-    const matchRepository: IngestMatchRepository = {
-      listUnsettled: async (tournamentId: string) => {
-        const rows = await db
-          .select()
-          .from(matchTable)
-          .where(
-            and(
-              inArray(matchTable.status, ["scheduled", "in_progress"]),
-              eq(matchTable.tournamentId, tournamentId),
-              lte(matchTable.kickoffUtc, now)
-            )
-          );
-        return rows.map((row) => ({
-          id: row.id,
-          tournamentId: row.tournamentId,
-          homeTeamId: row.homeTeamId,
-          awayTeamId: row.awayTeamId,
-          kickoffUtc: row.kickoffUtc,
-          status: row.status,
-          homeScore: row.homeScore ?? null,
-          awayScore: row.awayScore ?? null,
-          resultSource: row.resultSource ?? null,
-          settledAt: row.settledAt ?? null,
-        }));
-      },
-    };
-
-    const resultSource = new FifaAdapter();
-
-    const doSettle = async (command: SettleCommand): Promise<Response> => {
-      const doId = env.MATCH_DO.idFromName(command.matchId);
-      const stub = env.MATCH_DO.get(doId);
-      return stub.fetch("http://do/settle", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(command),
-      });
-    };
-
-    const result = await ingestMatchResults(
-      { tournamentId: data.tournamentId },
-      { matchRepository, resultSource, doSettle }
-    );
+    // Delegate to the shared runIngest with skipWindowGate=true.
+    // The manual admin backstop must settle ANY unsettled past match regardless
+    // of age — including matches >6h old that the cron/on-demand paths would NOOP.
+    // env source is the only difference vs. the cron path (cloudflare:workers vs. param).
+    const { runIngest } = await import("#/app/run-ingest");
+    const result = await runIngest(env, data.tournamentId, { skipWindowGate: true });
 
     return { success: true, ...result };
   });

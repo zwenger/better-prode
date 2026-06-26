@@ -32,6 +32,11 @@
     }
   ],
 
+  // Cron triggers — reconcile unsettled matches every 5 minutes
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
+
   // Observability
   "observability": {
     "enabled": true

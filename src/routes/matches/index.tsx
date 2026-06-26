@@ -12,7 +12,7 @@
 
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePushSubscription } from "#/hooks/usePushSubscription";
 import { asc, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
@@ -720,6 +720,13 @@ function MatchListPage() {
     code: string | null;
     name: string;
   }>({ open: false, code: null, name: "" });
+
+  // Post-mount fire-and-forget refresh — triggers background FIFA polling for
+  // any overdue unsettled matches without blocking page render.
+  // Failures are silently swallowed per spec; render never depends on this call.
+  useEffect(() => {
+    void fetch("/api/refresh", { method: "POST" });
+  }, []);
 
   const handleTeamPress = (code: string | null, name: string) => {
     setTeamSheet({ open: true, code, name });
