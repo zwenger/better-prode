@@ -11,7 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MatchesIndexRouteImport } from './routes/matches/index'
+import { Route as GroupsIndexRouteImport } from './routes/groups/index'
+import { Route as MatchesMatchIdRouteImport } from './routes/matches/$matchId'
 import { Route as LeaderboardGroupIdRouteImport } from './routes/leaderboard.$groupId'
+import { Route as InviteTokenRouteImport } from './routes/invite/$token'
+import { Route as GroupsNewRouteImport } from './routes/groups/new'
+import { Route as GroupsGroupIdMembersRouteImport } from './routes/groups/$groupId/members'
+import { Route as GroupsGroupIdInviteRouteImport } from './routes/groups/$groupId/invite'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -23,40 +29,122 @@ const MatchesIndexRoute = MatchesIndexRouteImport.update({
   path: '/matches/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GroupsIndexRoute = GroupsIndexRouteImport.update({
+  id: '/groups/',
+  path: '/groups/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MatchesMatchIdRoute = MatchesMatchIdRouteImport.update({
+  id: '/matches/$matchId',
+  path: '/matches/$matchId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LeaderboardGroupIdRoute = LeaderboardGroupIdRouteImport.update({
   id: '/leaderboard/$groupId',
   path: '/leaderboard/$groupId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GroupsNewRoute = GroupsNewRouteImport.update({
+  id: '/groups/new',
+  path: '/groups/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GroupsGroupIdMembersRoute = GroupsGroupIdMembersRouteImport.update({
+  id: '/groups/$groupId/members',
+  path: '/groups/$groupId/members',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GroupsGroupIdInviteRoute = GroupsGroupIdInviteRouteImport.update({
+  id: '/groups/$groupId/invite',
+  path: '/groups/$groupId/invite',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/groups/new': typeof GroupsNewRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/leaderboard/$groupId': typeof LeaderboardGroupIdRoute
+  '/matches/$matchId': typeof MatchesMatchIdRoute
+  '/groups/': typeof GroupsIndexRoute
   '/matches/': typeof MatchesIndexRoute
+  '/groups/$groupId/invite': typeof GroupsGroupIdInviteRoute
+  '/groups/$groupId/members': typeof GroupsGroupIdMembersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/groups/new': typeof GroupsNewRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/leaderboard/$groupId': typeof LeaderboardGroupIdRoute
+  '/matches/$matchId': typeof MatchesMatchIdRoute
+  '/groups': typeof GroupsIndexRoute
   '/matches': typeof MatchesIndexRoute
+  '/groups/$groupId/invite': typeof GroupsGroupIdInviteRoute
+  '/groups/$groupId/members': typeof GroupsGroupIdMembersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/groups/new': typeof GroupsNewRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/leaderboard/$groupId': typeof LeaderboardGroupIdRoute
+  '/matches/$matchId': typeof MatchesMatchIdRoute
+  '/groups/': typeof GroupsIndexRoute
   '/matches/': typeof MatchesIndexRoute
+  '/groups/$groupId/invite': typeof GroupsGroupIdInviteRoute
+  '/groups/$groupId/members': typeof GroupsGroupIdMembersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/leaderboard/$groupId' | '/matches/'
+  fullPaths:
+    | '/'
+    | '/groups/new'
+    | '/invite/$token'
+    | '/leaderboard/$groupId'
+    | '/matches/$matchId'
+    | '/groups/'
+    | '/matches/'
+    | '/groups/$groupId/invite'
+    | '/groups/$groupId/members'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/leaderboard/$groupId' | '/matches'
-  id: '__root__' | '/' | '/leaderboard/$groupId' | '/matches/'
+  to:
+    | '/'
+    | '/groups/new'
+    | '/invite/$token'
+    | '/leaderboard/$groupId'
+    | '/matches/$matchId'
+    | '/groups'
+    | '/matches'
+    | '/groups/$groupId/invite'
+    | '/groups/$groupId/members'
+  id:
+    | '__root__'
+    | '/'
+    | '/groups/new'
+    | '/invite/$token'
+    | '/leaderboard/$groupId'
+    | '/matches/$matchId'
+    | '/groups/'
+    | '/matches/'
+    | '/groups/$groupId/invite'
+    | '/groups/$groupId/members'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  GroupsNewRoute: typeof GroupsNewRoute
+  InviteTokenRoute: typeof InviteTokenRoute
   LeaderboardGroupIdRoute: typeof LeaderboardGroupIdRoute
+  MatchesMatchIdRoute: typeof MatchesMatchIdRoute
+  GroupsIndexRoute: typeof GroupsIndexRoute
   MatchesIndexRoute: typeof MatchesIndexRoute
+  GroupsGroupIdInviteRoute: typeof GroupsGroupIdInviteRoute
+  GroupsGroupIdMembersRoute: typeof GroupsGroupIdMembersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -75,6 +163,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MatchesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/groups/': {
+      id: '/groups/'
+      path: '/groups'
+      fullPath: '/groups/'
+      preLoaderRoute: typeof GroupsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/matches/$matchId': {
+      id: '/matches/$matchId'
+      path: '/matches/$matchId'
+      fullPath: '/matches/$matchId'
+      preLoaderRoute: typeof MatchesMatchIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/leaderboard/$groupId': {
       id: '/leaderboard/$groupId'
       path: '/leaderboard/$groupId'
@@ -82,13 +184,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeaderboardGroupIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/groups/new': {
+      id: '/groups/new'
+      path: '/groups/new'
+      fullPath: '/groups/new'
+      preLoaderRoute: typeof GroupsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/groups/$groupId/members': {
+      id: '/groups/$groupId/members'
+      path: '/groups/$groupId/members'
+      fullPath: '/groups/$groupId/members'
+      preLoaderRoute: typeof GroupsGroupIdMembersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/groups/$groupId/invite': {
+      id: '/groups/$groupId/invite'
+      path: '/groups/$groupId/invite'
+      fullPath: '/groups/$groupId/invite'
+      preLoaderRoute: typeof GroupsGroupIdInviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  GroupsNewRoute: GroupsNewRoute,
+  InviteTokenRoute: InviteTokenRoute,
   LeaderboardGroupIdRoute: LeaderboardGroupIdRoute,
+  MatchesMatchIdRoute: MatchesMatchIdRoute,
+  GroupsIndexRoute: GroupsIndexRoute,
   MatchesIndexRoute: MatchesIndexRoute,
+  GroupsGroupIdInviteRoute: GroupsGroupIdInviteRoute,
+  GroupsGroupIdMembersRoute: GroupsGroupIdMembersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

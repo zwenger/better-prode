@@ -27,6 +27,22 @@ const handleTestSession = TEST_AUTH_ENABLED
   ? (await import("./routes/api/test/-session")).handleTestSession
   : null;
 
+const handleResetDb = TEST_AUTH_ENABLED
+  ? (await import("./routes/api/test/-reset-db")).handleResetDb
+  : null;
+
+// Push subscription raw HTTP handlers — always available (real application
+// endpoints, not test-only). Exposed here so Playwright can POST to them
+// directly without TanStack server-fn RPC path discovery.
+const { handlePushSubscribe, handlePushUnsubscribe } = await import(
+  "./routes/api/push/-push-http"
+);
+
+// Prediction submit raw HTTP handler — always available.
+const { handleSubmitPrediction } = await import(
+  "./routes/api/predictions/-submit-http"
+);
+
 export default createServerEntry({
   async fetch(request) {
     const url = new URL(request.url);
@@ -48,6 +64,28 @@ export default createServerEntry({
       request.method === "POST"
     ) {
       return handleTestSession(request);
+    }
+
+    // Test-only DB reset (e2e builds only).
+    if (
+      handleResetDb !== null &&
+      url.pathname === "/api/test/reset-db" &&
+      request.method === "POST"
+    ) {
+      return handleResetDb(request);
+    }
+
+    // Push subscription raw HTTP endpoints (real app endpoints, not test-only).
+    if (url.pathname === "/api/push/subscribe" && request.method === "POST") {
+      return handlePushSubscribe(request);
+    }
+    if (url.pathname === "/api/push/unsubscribe" && request.method === "POST") {
+      return handlePushUnsubscribe(request);
+    }
+
+    // Prediction submit raw HTTP endpoint (real app endpoint, not test-only).
+    if (url.pathname === "/api/predictions/submit" && request.method === "POST") {
+      return handleSubmitPrediction(request);
     }
 
     return handler.fetch(request);
