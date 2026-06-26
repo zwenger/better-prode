@@ -25,7 +25,12 @@ export interface SubmitPredictionInput {
 export interface SubmitPredictionOutput {
   success: boolean;
   predictionId: string;
-  locked?: boolean;
+  // NOTE: lock is signaled exclusively by throwing { status: 422, message: "match_locked" }.
+  // The `locked` field was previously a dead branch — callers that need lock state
+  // should catch the 422 throw instead. Kept as an optional field for backward
+  // compatibility with existing callers; new code must NOT read this field.
+  /** @deprecated Lock is signaled via a 422 throw, not this field. Do not use. */
+  locked?: never;
   error?: string;
 }
 

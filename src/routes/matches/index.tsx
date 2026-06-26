@@ -10,7 +10,7 @@
  *   open-prediction-drawer (from PredictionDrawer)
  */
 
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { useState, useEffect } from "react";
 import { usePushSubscription } from "#/hooks/usePushSubscription";
@@ -21,7 +21,6 @@ import { match as matchTable, team as teamTable } from "#/infra/db/schema";
 import { getRequest } from "@tanstack/start-server-core";
 import { auth } from "#/infra/auth/auth";
 import { SystemClock } from "#/domain/ports/clock";
-import { submitPrediction } from "#/routes/api/predictions/-submit";
 import { TeamFlag } from "#/components/team-flag";
 import { ScoreStepper } from "#/components/score-stepper";
 import { DrizzlePredictionRepository } from "#/adapters/db/prediction-repository";
@@ -36,6 +35,7 @@ import { score } from "#/domain/scoring";
 import type { GoalCount } from "#/domain/scoring";
 import { TeamButton } from "#/components/team-button";
 import { TeamSheet } from "#/components/team-sheet";
+import { PredictableMatchCard } from "#/components/predictable-match-card";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -358,144 +358,8 @@ function ScoreBreakdown({ match }: { match: MatchListItem }) {
 // ---------------------------------------------------------------------------
 // Card components
 // ---------------------------------------------------------------------------
-
-/** Unlocked scheduled match — steppers + submit */
-function PredictableMatchCard({
-  match,
-  userId,
-  onTeamPress,
-}: {
-  match: MatchListItem;
-  userId: string | null;
-  onTeamPress: (code: string | null, name: string) => void;
-}) {
-  const [homeGoals, setHomeGoals] = useState(
-    match.userPrediction?.homeGoals ?? 0
-  );
-  const [awayGoals, setAwayGoals] = useState(
-    match.userPrediction?.awayGoals ?? 0
-  );
-  const [status, setStatus] = useState<
-    "idle" | "submitting" | "done" | "locked" | "error"
-  >("idle");
-  const navigate = useNavigate();
-
-  const hasPrediction = match.userPrediction !== null;
-
-  const handleSubmit = async () => {
-    if (!userId) {
-      void navigate({ to: "/" });
-      return;
-    }
-    setStatus("submitting");
-    try {
-      const result = await submitPrediction({
-        data: { matchId: match.id, homeGoals, awayGoals },
-      });
-      setStatus(result.locked ? "locked" : "done");
-    } catch {
-      setStatus("error");
-    }
-  };
-
-  return (
-    <article
-      className="bg-card border border-border rounded-lg p-4 mb-3"
-      data-testid="match-card"
-      data-match-id={match.id}
-    >
-      {/* Header: group label · kickoff time */}
-      <div className="flex justify-between items-center mb-3">
-        <span className="text-xs font-semibold text-muted-foreground">
-          {match.groupLabel ?? ""}
-        </span>
-        <span className="text-xs text-muted-foreground tabular-nums">
-          {formatKickoffUtc(match.kickoffUtc)}
-        </span>
-      </div>
-
-      {/* Teams */}
-      <div className="flex items-center justify-between gap-2 mb-4">
-        <TeamButton
-          name={match.homeName}
-          code={match.homeCode}
-          align="left"
-          onPress={() => onTeamPress(match.homeCode, match.homeName)}
-        />
-        <span className="text-xs text-muted-foreground shrink-0">vs</span>
-        <TeamButton
-          name={match.awayName}
-          code={match.awayCode}
-          align="right"
-          onPress={() => onTeamPress(match.awayCode, match.awayName)}
-        />
-      </div>
-
-      {/* Score steppers */}
-      <div className="flex items-center justify-center gap-3 mb-3">
-        <ScoreStepper
-          value={homeGoals}
-          onChange={setHomeGoals}
-          disabled={status === "submitting"}
-          label="home goals"
-        />
-        <span className="text-xl font-bold text-foreground font-score">:</span>
-        <ScoreStepper
-          value={awayGoals}
-          onChange={setAwayGoals}
-          disabled={status === "submitting"}
-          label="away goals"
-        />
-      </div>
-
-      {/* Submit / status */}
-      {status === "done" ? (
-        <p
-          className="text-sm text-center font-semibold"
-          style={{ color: "var(--pitch-green-ink)" }}
-          data-testid="prediction-saved"
-        >
-          ¡Guardado!
-        </p>
-      ) : status === "locked" ? (
-        <p
-          className="mt-2 text-sm text-center text-muted-foreground"
-          data-testid="prediction-locked"
-        >
-          El partido ya está cerrado.
-        </p>
-      ) : (
-        <button
-          type="button"
-          onClick={() => {
-            void handleSubmit();
-          }}
-          disabled={status === "submitting"}
-          className="w-full py-3 rounded-md bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50 transition-colors"
-          data-testid="submit-prediction"
-        >
-          {status === "submitting"
-            ? "Guardando…"
-            : hasPrediction
-              ? "Editar predicción"
-              : "Guardar predicción"}
-        </button>
-      )}
-      {status === "error" && (
-        <p className="mt-1 text-xs text-destructive text-center">
-          Error al guardar. Intentá de nuevo.
-        </p>
-      )}
-
-      <PredictionDrawer
-        matchId={match.id}
-        kickoffUtc={match.kickoffUtc}
-        locked={match.locked}
-        groupIds={[]}
-      />
-    </article>
-  );
-}
+// Note: PredictableMatchCard is now the shared component from
+// src/components/predictable-match-card.tsx — imported above.
 
 /** Scheduled but locked match — disabled steppers + locked indicator */
 function LockedMatchCard({
