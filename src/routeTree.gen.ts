@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TodayRouteImport } from './routes/today'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MatchesIndexRouteImport } from './routes/matches/index'
 import { Route as GroupsIndexRouteImport } from './routes/groups/index'
@@ -19,6 +20,11 @@ import { Route as GroupsNewRouteImport } from './routes/groups/new'
 import { Route as GroupsGroupIdMembersRouteImport } from './routes/groups/$groupId/members'
 import { Route as GroupsGroupIdInviteRouteImport } from './routes/groups/$groupId/invite'
 
+const TodayRoute = TodayRouteImport.update({
+  id: '/today',
+  path: '/today',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -67,6 +73,7 @@ const GroupsGroupIdInviteRoute = GroupsGroupIdInviteRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/today': typeof TodayRoute
   '/groups/new': typeof GroupsNewRoute
   '/invite/$token': typeof InviteTokenRoute
   '/leaderboard/$groupId': typeof LeaderboardGroupIdRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/today': typeof TodayRoute
   '/groups/new': typeof GroupsNewRoute
   '/invite/$token': typeof InviteTokenRoute
   '/leaderboard/$groupId': typeof LeaderboardGroupIdRoute
@@ -90,6 +98,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/today': typeof TodayRoute
   '/groups/new': typeof GroupsNewRoute
   '/invite/$token': typeof InviteTokenRoute
   '/leaderboard/$groupId': typeof LeaderboardGroupIdRoute
@@ -103,6 +112,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/today'
     | '/groups/new'
     | '/invite/$token'
     | '/leaderboard/$groupId'
@@ -114,6 +124,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/today'
     | '/groups/new'
     | '/invite/$token'
     | '/leaderboard/$groupId'
@@ -125,6 +136,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/today'
     | '/groups/new'
     | '/invite/$token'
     | '/leaderboard/$groupId'
@@ -137,6 +149,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  TodayRoute: typeof TodayRoute
   GroupsNewRoute: typeof GroupsNewRoute
   InviteTokenRoute: typeof InviteTokenRoute
   LeaderboardGroupIdRoute: typeof LeaderboardGroupIdRoute
@@ -149,6 +162,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/today': {
+      id: '/today'
+      path: '/today'
+      fullPath: '/today'
+      preLoaderRoute: typeof TodayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -217,6 +237,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  TodayRoute: TodayRoute,
   GroupsNewRoute: GroupsNewRoute,
   InviteTokenRoute: InviteTokenRoute,
   LeaderboardGroupIdRoute: LeaderboardGroupIdRoute,
