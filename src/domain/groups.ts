@@ -119,6 +119,12 @@ export async function generateInviteToken(
     );
   }
 
+  // Idempotent: return the existing active token if one already exists.
+  const existing = await invitationRepo.getActiveByGroup(input.groupId);
+  if (existing) {
+    return { invitation: existing, url: `/invite/${existing.token}` };
+  }
+
   const now = new Date().toISOString();
   const invitation: InvitationRecord = {
     id: randomUUID(),
@@ -148,8 +154,9 @@ export interface JoinViaTokenInput {
 }
 
 /**
- * Joins a group via an invite token. Creates a membership with role "member"
- * and marks the invitation as "accepted".
+ * Joins a group via an invite token. Creates a membership with role "member".
+ * The invitation token stays "pending" — group invite links are reusable, so
+ * many users can join via the same link (it is NOT consumed on join).
  */
 export async function joinViaToken(
   input: JoinViaTokenInput,
@@ -182,7 +189,8 @@ export async function joinViaToken(
   };
 
   await groupRepo.addMembership(membership);
-  await invitationRepo.updateStatus(invitation.id, "accepted");
+  // Token is intentionally NOT consumed — the invite link is reusable so
+  // subsequent users can join via the same link. Invitation stays "pending".
 
   return { membership };
 }

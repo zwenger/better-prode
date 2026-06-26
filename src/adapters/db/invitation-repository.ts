@@ -7,7 +7,7 @@
  * Design decision #1: domain depends on nothing; adapters implement ports.
  */
 
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import type { DrizzleDb } from "#/infra/db/client";
 import { invitation as invitationTable } from "#/infra/db/schema";
 import type {
@@ -59,6 +59,7 @@ export class DrizzleInvitationRepository implements InvitationRepository {
           eq(invitationTable.status, "pending")
         )
       )
+      .orderBy(desc(invitationTable.createdAt))
       .limit(1);
 
     if (rows.length === 0) return null;
