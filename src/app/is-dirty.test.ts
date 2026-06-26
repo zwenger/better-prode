@@ -2,7 +2,7 @@
  * isDirty unit tests — RED → GREEN
  *
  * Covers:
- *  - null saved → always dirty
+ *  - null saved + untouched 0-0 → not dirty; null saved + real entry → dirty
  *  - equal values → not dirty
  *  - differing home goals → dirty
  *  - differing away goals → dirty
@@ -13,12 +13,16 @@ import { describe, it, expect } from "vitest";
 import { isDirty } from "./is-dirty";
 
 describe("isDirty", () => {
-  it("returns true when saved is null (no baseline)", () => {
-    expect(isDirty({ homeGoals: 0, awayGoals: 0 }, null)).toBe(true);
+  it("returns false when saved is null and draft is the untouched 0-0", () => {
+    expect(isDirty({ homeGoals: 0, awayGoals: 0 }, null)).toBe(false);
   });
 
-  it("returns true when saved is null regardless of draft values", () => {
+  it("returns true when saved is null and draft is a non-default entry", () => {
     expect(isDirty({ homeGoals: 3, awayGoals: 2 }, null)).toBe(true);
+  });
+
+  it("returns true when saved is null and only one side is non-zero", () => {
+    expect(isDirty({ homeGoals: 1, awayGoals: 0 }, null)).toBe(true);
   });
 
   it("returns false when draft equals saved", () => {
