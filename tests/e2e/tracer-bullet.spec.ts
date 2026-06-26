@@ -90,6 +90,19 @@ test.describe("Tracer Bullet — login → predict → settle → leaderboard", 
     // Should show saved confirmation
     const saved = page.locator("[data-testid='prediction-saved']").first();
     await expect(saved).toBeVisible({ timeout: 10000 });
+
+    // Verify the prediction was actually PERSISTED to the DB with the correct
+    // scores — not just that the UI showed a confirmation. Connects to the E2E
+    // libSQL server (turso dev on :8081, started by scripts/e2e-server.sh).
+    const { createClient } = await import("@libsql/client");
+    const dbClient = createClient({ url: "http://127.0.0.1:8081" });
+    const row = await dbClient.execute({
+      sql: "SELECT home_goals, away_goals FROM prediction WHERE user_id = ? AND match_id = ?",
+      args: [TEST_USER.id, "match-arg-bra"],
+    });
+    expect(row.rows.length).toBe(1);
+    expect(Number(row.rows[0].home_goals)).toBe(2);
+    expect(Number(row.rows[0].away_goals)).toBe(1);
   });
 
   test("leaderboard page renders without crashing", async () => {

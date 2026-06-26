@@ -2,13 +2,13 @@
  * POST /api/predictions/submit
  *
  * Submits or updates a prediction for a match.
- * - Validates auth session
- * - Checks server-side lock (kickoff − 5min, using SystemClock)
- * - Returns 423 if locked
- * - Upserts prediction (UNIQUE(user_id, match_id))
+ * - Validates goal inputs (HTTP 400 on invalid)
+ * - Validates auth session (Unauthorized if none)
+ * - Delegates lock-check + upsert to submitPredictionCore (domain)
  *
- * Spec (predictions): server lock is authoritative — rejects even crafted requests.
- * Design: Clock injected via SystemClock in production; FakeClock in tests.
+ * The persistence + lock logic lives in `#/domain/submit-prediction` so it can
+ * be integration-tested against a real in-memory libSQL without the auth/request
+ * plumbing (which initializes the Better Auth + DB client at module load).
  */
 
 import { createServerFn } from "@tanstack/react-start";
@@ -16,23 +16,17 @@ import { getRequest } from "@tanstack/start-server-core";
 import { auth } from "#/infra/auth/auth";
 import { getDb } from "#/infra/db/client";
 import { SystemClock } from "#/domain/ports/clock";
-import { isLocked } from "#/domain/lock";
 import { validateGoals } from "#/domain/validate-goals";
-import { LibSqlMatchRepository } from "#/adapters/db/match-repository";
-import { LibSqlPredictionRepository } from "#/adapters/db/prediction-repository";
+import { DrizzleMatchRepository } from "#/adapters/db/match-repository";
+import { DrizzlePredictionRepository } from "#/adapters/db/prediction-repository";
+import {
+  submitPredictionCore
+  
+  
+} from "#/domain/submit-prediction";
+import type {SubmitPredictionInput, SubmitPredictionOutput} from "#/domain/submit-prediction";
 
-export interface SubmitPredictionInput {
-  matchId: string;
-  homeGoals: number;
-  awayGoals: number;
-}
-
-export interface SubmitPredictionOutput {
-  success: boolean;
-  predictionId: string;
-  locked?: boolean;
-  error?: string;
-}
+export type { SubmitPredictionInput, SubmitPredictionOutput };
 
 export const submitPrediction = createServerFn({ method: "POST" })
   .validator((data: unknown): SubmitPredictionInput => {
@@ -53,26 +47,11 @@ export const submitPrediction = createServerFn({ method: "POST" })
     }
 
     const db = getDb();
-    const matchRepo = new LibSqlMatchRepository(db);
-    const predRepo = new LibSqlPredictionRepository(db);
-
-    const match = await matchRepo.getById(data.matchId);
-    if (!match) {
-      throw new Error(`Match not found: ${data.matchId}`);
-    }
-
-    const clock = new SystemClock();
-    if (isLocked(match.kickoffUtc, clock)) {
-      // S2: return HTTP 422 with reason match_locked per spec (not 200)
-      throw Object.assign(new Error("match_locked"), { status: 422 });
-    }
-
-    const prediction = await predRepo.upsert({
+    return submitPredictionCore({
       userId: session.user.id,
-      matchId: data.matchId,
-      homeGoals: data.homeGoals,
-      awayGoals: data.awayGoals,
+      input: data,
+      matchRepo: new DrizzleMatchRepository(db),
+      predRepo: new DrizzlePredictionRepository(db),
+      clock: new SystemClock(),
     });
-
-    return { success: true, predictionId: prediction.id };
   });
