@@ -1,53 +1,93 @@
+/* Font imports */
+@import "@fontsource/archivo/400.css";
+@import "@fontsource/archivo/700.css";
+@import "@fontsource/archivo/800.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/600.css";
 @import "tailwindcss";
+@import "flag-icons/css/flag-icons.css";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: hsl(0 0% 100%);
-  --foreground: hsl(222.2 84% 4.9%);
-  --card: hsl(0 0% 100%);
-  --card-foreground: hsl(222.2 84% 4.9%);
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(222.2 84% 4.9%);
-  --primary: hsl(222.2 47.4% 11.2%);
-  --primary-foreground: hsl(210 40% 98%);
-  --secondary: hsl(210 40% 96.1%);
-  --secondary-foreground: hsl(222.2 47.4% 11.2%);
-  --muted: hsl(210 40% 96.1%);
-  --muted-foreground: hsl(215.4 16.3% 46.9%);
-  --accent: hsl(210 40% 96.1%);
-  --accent-foreground: hsl(222.2 47.4% 11.2%);
-  --destructive: hsl(0 84.2% 60.2%);
-  --destructive-foreground: hsl(210 40% 98%);
-  --border: hsl(214.3 31.8% 91.4%);
-  --input: hsl(214.3 31.8% 91.4%);
-  --ring: hsl(222.2 84% 4.9%);
-  --radius: 0.5rem;
+  /* shadcn semantic tokens → OKLCH palette */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.22 0.015 152);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.015 152);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.015 152);
+  --primary: oklch(0.48 0.12 150);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.975 0.008 150);
+  --secondary-foreground: oklch(0.22 0.015 152);
+  --muted: oklch(0.975 0.008 150);
+  --muted-foreground: oklch(0.46 0.012 152);
+  --accent: oklch(0.975 0.008 150);
+  --accent-foreground: oklch(0.22 0.015 152);
+  --destructive: oklch(0.56 0.20 27);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.91 0.006 152);
+  --input: oklch(0.91 0.006 152);
+  --ring: oklch(0.48 0.12 150);
+  --radius: 0.75rem;
+
+  /* Custom semantic tokens */
+  --pitch-green: oklch(0.48 0.12 150);
+  --pitch-green-deep: oklch(0.42 0.12 150);
+  --pitch-green-ink: oklch(0.38 0.10 150);
+  --pitch-green-tint: oklch(0.95 0.04 150);
+  --glory-gold: oklch(0.82 0.13 84);
+  --glory-gold-ink: oklch(0.34 0.06 70);
+  --ink: oklch(0.22 0.015 152);
+  --ink-muted: oklch(0.46 0.012 152);
+  --surface: oklch(1 0 0);
+  --surface-subtle: oklch(0.975 0.008 150);
+  --border-hairline: oklch(0.91 0.006 152);
+  --miss-red: oklch(0.56 0.20 27);
+  --miss-red-ink: oklch(0.45 0.16 27);
+  --miss-red-tint: oklch(0.95 0.05 25);
+  --live-red: oklch(0.62 0.21 25);
 }
 
 .dark {
-  --background: hsl(222.2 84% 4.9%);
-  --foreground: hsl(210 40% 98%);
-  --card: hsl(222.2 84% 4.9%);
-  --card-foreground: hsl(210 40% 98%);
-  --popover: hsl(222.2 84% 4.9%);
-  --popover-foreground: hsl(210 40% 98%);
-  --primary: hsl(210 40% 98%);
-  --primary-foreground: hsl(222.2 47.4% 11.2%);
-  --secondary: hsl(217.2 32.6% 17.5%);
-  --secondary-foreground: hsl(210 40% 98%);
-  --muted: hsl(217.2 32.6% 17.5%);
-  --muted-foreground: hsl(215 20.2% 65.1%);
-  --accent: hsl(217.2 32.6% 17.5%);
-  --accent-foreground: hsl(210 40% 98%);
-  --destructive: hsl(0 62.8% 30.6%);
-  --destructive-foreground: hsl(210 40% 98%);
-  --border: hsl(217.2 32.6% 17.5%);
-  --input: hsl(217.2 32.6% 17.5%);
-  --ring: hsl(212.7 26.8% 83.9%);
+  --background: oklch(0.14 0.012 152);
+  --foreground: oklch(0.96 0.008 150);
+  --card: oklch(0.18 0.010 150);
+  --card-foreground: oklch(0.96 0.008 150);
+  --popover: oklch(0.18 0.010 150);
+  --popover-foreground: oklch(0.96 0.008 150);
+  --primary: oklch(0.60 0.13 150);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.22 0.008 150);
+  --secondary-foreground: oklch(0.96 0.008 150);
+  --muted: oklch(0.22 0.008 150);
+  --muted-foreground: oklch(0.72 0.010 152);
+  --accent: oklch(0.22 0.008 150);
+  --accent-foreground: oklch(0.96 0.008 150);
+  --destructive: oklch(0.56 0.20 27);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.28 0.008 152);
+  --input: oklch(0.28 0.008 152);
+  --ring: oklch(0.60 0.13 150);
+
+  /* Custom dark overrides */
+  --pitch-green: oklch(0.60 0.13 150);
+  --pitch-green-deep: oklch(0.52 0.12 150);
+  --pitch-green-ink: oklch(0.75 0.10 150);
+  --pitch-green-tint: oklch(0.22 0.06 150);
+  --glory-gold: oklch(0.86 0.12 84);
+  --glory-gold-ink: oklch(0.34 0.06 70);
+  --ink: oklch(0.96 0.008 150);
+  --ink-muted: oklch(0.72 0.010 152);
+  --surface: oklch(0.18 0.010 150);
+  --surface-subtle: oklch(0.22 0.008 150);
+  --border-hairline: oklch(0.28 0.008 152);
+  --miss-red-tint: oklch(0.22 0.06 25);
 }
 
 @theme inline {
+  /* shadcn color tokens */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -67,9 +107,32 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+
+  /* Custom semantic color utilities */
+  --color-pitch-green: var(--pitch-green);
+  --color-pitch-green-deep: var(--pitch-green-deep);
+  --color-pitch-green-ink: var(--pitch-green-ink);
+  --color-pitch-green-tint: var(--pitch-green-tint);
+  --color-glory-gold: var(--glory-gold);
+  --color-glory-gold-ink: var(--glory-gold-ink);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-border-hairline: var(--border-hairline);
+  --color-miss-red: var(--miss-red);
+  --color-miss-red-ink: var(--miss-red-ink);
+  --color-miss-red-tint: var(--miss-red-tint);
+  --color-live-red: var(--live-red);
+
+  /* Radius scale */
+  --radius-sm: calc(var(--radius) - 8px);
+  --radius-md: calc(var(--radius) - 4px);
   --radius-lg: var(--radius);
+
+  /* Elevation shadows */
+  --shadow-lifted: 0 1px 2px oklch(0.22 0.015 152 / 0.06), 0 2px 8px oklch(0.22 0.015 152 / 0.08);
+  --shadow-sheet: 0 -8px 32px oklch(0.22 0.015 152 / 0.18);
 }
 
 @layer base {
@@ -77,9 +140,29 @@
     @apply border-border;
     box-sizing: border-box;
   }
+
   body {
     @apply bg-background text-foreground;
+    font-family: Inter, system-ui, sans-serif;
     margin: 0;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: Archivo, system-ui, sans-serif;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  .font-score {
+    font-family: Archivo, system-ui, sans-serif;
+    font-feature-settings: 'tnum' 1;
   }
 }
 
