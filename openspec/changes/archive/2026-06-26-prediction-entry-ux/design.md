@@ -12,7 +12,7 @@ Extract one controlled `PredictableMatchCard` into `src/components/`, used by `/
 | 2. Bug fix (state machine) | keep `done` terminal; flash-then-editable | **Flash-then-editable.** On success set local `saved=true`, start a `~1.5s` timer to clear it; reduced-motion clears instantly. Remove the dead `result.locked` branch — lock = 422 throw caught as `locked` state. Button NEVER hidden for unlocked match. `clearTimeout` on unmount. |
 | 3. Draft + dirty | per-card diff; page-owned Map + memo | **Page-owned Map + memoized dirty set.** Pure `isDirty(draft,saved)`. Memoize the card (`React.memo`) and derive `dirtyCount` via `useMemo` so a stepper tick re-renders only its own card, not the bar/list. |
 | 4. Batch fn | sequential; `Promise.allSettled` | **`Promise.allSettled`** looping `submitPredictionCore` per match. Lean parallel; bulk DB insert deferred (upsert proven idempotent). Same session check as single submit. |
-| 5. Sticky bar | float over nav; sit above nav | **Sit above tab bar.** `position:fixed; bottom:calc(4rem + env(safe-area-inset-bottom)); z-20`, on-brand pitch green, ≥44px, reduced-motion-safe. Page content gets extra bottom padding when bar visible so no content is trapped. |
+| 5. Sticky bar | float over nav; sit above nav | **Sit above tab bar.** `position:fixed; bottom:calc(4rem + env(safe-area-inset-bottom)); z-30`, on-brand pitch green, ≥44px, reduced-motion-safe. Page content gets extra bottom padding when bar visible so no content is trapped. |
 | 6. Post-save state | full loader reload; local update | **Local update.** On success, set `savedValue = draftValue` for that match so `isDirty` recomputes false. No `router.invalidate()`. |
 | 7. /today scope | fix only; fix + bar | **Both.** Spec mandates both routes get shared card + bug fix + batch bar. |
 
@@ -92,4 +92,4 @@ No DB migration. Two PR slices: Slice 1 = card extraction + bug fix (both routes
 
 ## Open Questions
 
-- [ ] None blocking. Bulk DB endpoint intentionally deferred.
+- [x] None blocking. Bulk DB endpoint intentionally deferred.
