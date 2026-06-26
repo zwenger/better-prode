@@ -243,7 +243,7 @@ function MatchDetailPage() {
       {/* User prediction */}
       {prediction ? (
         <div className="border rounded p-4">
-          <h2 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">
+          <h2 className="text-sm font-semibold mb-2 text-muted-foreground">
             Tu predicción
           </h2>
           <div className="flex items-center gap-3 text-xl font-bold tabular-nums">

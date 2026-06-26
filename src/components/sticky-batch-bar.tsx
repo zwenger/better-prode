@@ -11,7 +11,8 @@
  *   saving      — "Guardando…" disabled button
  *   partial     — "X de N guardadas" success summary
  *
- * Reduced-motion: no transition animation when prefers-reduced-motion: reduce.
+ * Motion: slides up from below on enter (150ms ease-out).
+ * Reduced-motion: instant fade (no translate).
  *
  * E2E testid contract:
  *   data-testid="batch-save-bar"    — the bar container
@@ -38,7 +39,7 @@ export function StickyBatchBar({
   return (
     <div
       data-testid="batch-save-bar"
-      className="fixed inset-x-0 z-30 flex items-center justify-between gap-3 px-4 py-2"
+      className="fixed inset-x-0 z-30 flex items-center justify-between gap-3 px-4 py-2 batch-bar-enter"
       style={{
         bottom: "calc(4rem + env(safe-area-inset-bottom))",
         backgroundColor: "var(--pitch-green)",
@@ -49,7 +50,7 @@ export function StickyBatchBar({
         <p
           data-testid="batch-save-result"
           className="flex-1 text-sm font-semibold text-center"
-          style={{ color: "var(--pitch-green-ink)" }}
+          style={{ color: "var(--surface)" }}
         >
           {result}
         </p>
@@ -59,7 +60,7 @@ export function StickyBatchBar({
           data-testid="batch-save-button"
           onClick={onSaveAll}
           disabled={saving || dirtyCount === 0}
-          className="flex-1 py-2 rounded-md text-sm font-semibold disabled:opacity-60"
+          className="flex-1 py-2 rounded-md text-sm font-semibold disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-pitch-green"
           style={{
             backgroundColor: "var(--pitch-green-tint)",
             color: "var(--pitch-green-ink)",
