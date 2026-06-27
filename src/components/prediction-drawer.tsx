@@ -20,7 +20,7 @@ import { getRequest } from "@tanstack/start-server-core";
 import { eq, and } from "drizzle-orm";
 import { auth } from "#/infra/auth/auth";
 import { getDb } from "#/infra/db/client";
-import { groupMembership as membershipTable, prediction as predictionTable } from "#/infra/db/schema";
+import { groupMembership as membershipTable, prediction as predictionTable, user as userTable } from "#/infra/db/schema";
 import { isLocked } from "#/domain/lock";
 import { SystemClock } from "#/domain/ports/clock";
 import {
@@ -38,6 +38,10 @@ import {
 
 interface GroupPredictionEntry {
   userId: string;
+  /** Display name of the member (never the raw user id). */
+  name: string;
+  /** True for the requesting user's own row, for the "Vos" highlight. */
+  isMe: boolean;
   homeGoals: number;
   awayGoals: number;
   points: number | null;
@@ -87,13 +91,15 @@ export const getGroupPredictions = createServerFn({ method: "GET", strict: false
       throw Object.assign(new Error("Not a member of this group"), { status: 403 });
     }
 
-    // Fetch all group member IDs
+    // Fetch all group members with their display names
     const members = await db
-      .select({ userId: membershipTable.userId })
+      .select({ userId: membershipTable.userId, name: userTable.name })
       .from(membershipTable)
+      .innerJoin(userTable, eq(userTable.id, membershipTable.userId))
       .where(eq(membershipTable.groupId, data.groupId));
 
     const memberIds = members.map((m) => m.userId);
+    const nameById = new Map(members.map((m) => [m.userId, m.name]));
     if (memberIds.length === 0) return { entries: [] };
 
     // Fetch predictions for this match from all group members
@@ -112,6 +118,8 @@ export const getGroupPredictions = createServerFn({ method: "GET", strict: false
       .filter((p) => memberIdSet.has(p.userId))
       .map((p) => ({
         userId: p.userId,
+        name: nameById.get(p.userId) ?? "Jugador",
+        isMe: p.userId === userId,
         homeGoals: p.homeGoals,
         awayGoals: p.awayGoals,
         points: p.points,
@@ -219,10 +227,26 @@ export function PredictionDrawer({
             {entries.map((entry) => (
               <div
                 key={entry.userId}
-                className="flex items-center justify-between p-2 rounded border"
+                className={[
+                  "flex items-center justify-between gap-2 p-2 rounded border",
+                  entry.isMe ? "border-primary bg-muted" : "",
+                ].join(" ")}
                 data-testid="drawer-prediction-entry"
               >
-                <span className="text-sm font-medium truncate">{entry.userId}</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full bg-muted text-foreground text-xs font-bold"
+                    aria-hidden="true"
+                  >
+                    {entry.name.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="text-sm font-medium truncate">{entry.name}</span>
+                  {entry.isMe && (
+                    <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                      Vos
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="font-bold tabular-nums">
                     {entry.homeGoals} – {entry.awayGoals}
@@ -235,6 +259,12 @@ export function PredictionDrawer({
                 </div>
               </div>
             ))}
+
+            {!loading && !error && entries.length > 0 && (
+              <p className="pt-1 text-[11px] text-muted-foreground">
+                Las predicciones se revelan recién cuando arranca el partido.
+              </p>
+            )}
           </div>
         </DrawerContent>
       </Drawer>
