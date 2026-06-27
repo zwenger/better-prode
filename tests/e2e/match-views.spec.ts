@@ -77,6 +77,20 @@ test.describe("Match Views — match list, predictions, drawer", () => {
   // 4.8.2: Prediction entry before lock — steppers active
   // ---------------------------------------------------------------------------
 
+  test("match detail hub: open match shows an editable prediction + form", async () => {
+    await seedUserAndInjectSession(page, context, matchViewsUser);
+    // match-arg-bra is a future (unlocked) scheduled match in the fixture.
+    await page.goto("/matches/match-arg-bra");
+
+    // Editable prediction is available right on the detail page (the key new
+    // capability — previously this page was read-only).
+    await expect(page.getByTestId("prediction-editor")).toBeVisible({ timeout: 10000 });
+    const inc = page.getByRole("button", { name: /increase home goals/i }).first();
+    await expect(inc).toBeVisible();
+    await inc.click();
+    await expect(page.getByTestId("save-prediction")).toBeVisible();
+  });
+
   test("match card links to the match detail page", async () => {
     await seedUserAndInjectSession(page, context, matchViewsUser);
     await page.goto("/matches");
