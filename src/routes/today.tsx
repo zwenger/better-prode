@@ -19,6 +19,7 @@ import { auth } from "#/infra/auth/auth";
 import { SystemClock } from "#/domain/ports/clock";
 import { TeamFlag } from "#/components/team-flag";
 import { DrizzlePredictionRepository } from "#/adapters/db/prediction-repository";
+import { DrizzleGroupRepository } from "#/adapters/db/group-repository";
 import {
   shapeMatchRows,
 } from "#/routes/matches/-match-list-loader";
@@ -29,6 +30,7 @@ import { AppShell } from "#/components/app-shell";
 import { TeamButton } from "#/components/team-button";
 import { TeamSheet } from "#/components/team-sheet";
 import { PredictableMatchCard } from "#/components/predictable-match-card";
+import { PredictionDrawer } from "#/components/prediction-drawer";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -61,6 +63,8 @@ interface TodayLoaderData {
   userId: string;
   vapidPublicKey: string | null;
   anchorDate: string;
+  /** The current user's group IDs — powers the "Ver predicciones del grupo" drawer. */
+  groupIds: string[];
 }
 
 const getTodayMatches = createServerFn({ method: "GET" }).handler(
@@ -135,11 +139,17 @@ const getTodayMatches = createServerFn({ method: "GET" }).handler(
       anchorDate = allDates.find((d) => d >= todayUtc) ?? (allDates.length > 0 ? allDates[0] : todayUtc);
     }
 
+    // The user's groups — drives the "Ver predicciones del grupo" drawer.
+    const groupRepo = new DrizzleGroupRepository(db);
+    const userGroups = await groupRepo.listByUser(userId);
+    const groupIds = userGroups.map((g) => g.id);
+
     return {
       matches,
       userId,
       vapidPublicKey: process.env["VAPID_PUBLIC_KEY"] ?? null,
       anchorDate,
+      groupIds,
     };
   }
 );
@@ -226,9 +236,11 @@ function LockedMatchCard({
 function LiveMatchCard({
   match,
   onTeamPress,
+  groupIds,
 }: {
   match: MatchListItem;
   onTeamPress: (code: string | null, name: string) => void;
+  groupIds: string[];
 }) {
   return (
     <article
@@ -278,6 +290,13 @@ function LiveMatchCard({
           </span>
         </p>
       )}
+
+      <PredictionDrawer
+        matchId={match.id}
+        kickoffUtc={match.kickoffUtc}
+        locked={true}
+        groupIds={groupIds}
+      />
     </article>
   );
 }
@@ -508,7 +527,7 @@ const MemoizedPredictableMatchCard = memo(PredictableMatchCard);
 // ---------------------------------------------------------------------------
 
 function TodayPage() {
-  const { matches, anchorDate } = Route.useLoaderData();
+  const { matches, anchorDate, groupIds } = Route.useLoaderData();
   const [teamSheet, setTeamSheet] = useState<{
     open: boolean;
     code: string | null;
@@ -596,6 +615,7 @@ function TodayPage() {
                       <LiveMatchCard
                         key={m.id}
                         match={m}
+                        groupIds={groupIds}
                         onTeamPress={handleTeamPress}
                       />
                     );
@@ -613,6 +633,7 @@ function TodayPage() {
                     <MemoizedPredictableMatchCard
                       key={m.id}
                       match={m}
+                      groupIds={groupIds}
                       onTeamPress={handleTeamPress}
                     />
                   );

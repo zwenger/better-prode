@@ -62,6 +62,8 @@ export interface PredictableMatchCardProps {
   onTeamPress: (code: string | null, name: string) => void;
   /** userId — used to redirect unauthenticated users to "/" */
   userId?: string | null;
+  /** The current user's group IDs — enables the "Ver predicciones del grupo" drawer once locked. */
+  groupIds?: string[];
   /**
    * submitFn — the actual network call. Defaults to the imported submitPrediction
    * server fn. PR2 can inject a custom fn for batch flow or testing.
@@ -111,6 +113,7 @@ export function PredictableMatchCard({
   // userId is accepted for future use (e.g. redirect on unauthenticated submit)
   // but the server fn itself enforces auth — no client-side redirect needed here.
   userId: _userId,
+  groupIds = [],
   submitFn = defaultSubmitFn,
 }: PredictableMatchCardProps) {
   // Internal draft state — used when the card is NOT fully controlled (PR1 mode).
@@ -316,7 +319,7 @@ export function PredictableMatchCard({
         matchId={match.id}
         kickoffUtc={match.kickoffUtc}
         locked={match.locked}
-        groupIds={[]}
+        groupIds={groupIds}
       />
     </article>
   );

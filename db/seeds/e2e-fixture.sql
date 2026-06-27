@@ -67,6 +67,22 @@ VALUES (
   '2026-06-01T00:00:00.000Z'
 );
 
+-- Live (in_progress) match — kickoff in the past so it is locked, status
+-- in_progress with a running score. Used to test the "Ver predicciones del
+-- grupo" drawer on the live card (group-predictions feature).
+INSERT INTO match(id, tournament_id, home_team_id, away_team_id, kickoff_utc, status, home_score, away_score, created_at)
+VALUES (
+  'e2e-match-live',
+  'wc-2026',
+  'team-france',
+  'team-germany',
+  '2020-06-01T12:00:00.000Z',
+  'in_progress',
+  1,
+  0,
+  '2026-06-01T00:00:00.000Z'
+);
+
 -- Test user (used by auth-bypass helper)
 INSERT INTO "user"(id, name, email, emailVerified, image, createdAt, updatedAt)
 VALUES (

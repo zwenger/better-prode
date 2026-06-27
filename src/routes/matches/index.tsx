@@ -24,6 +24,7 @@ import { SystemClock } from "#/domain/ports/clock";
 import { TeamFlag } from "#/components/team-flag";
 import { ScoreStepper } from "#/components/score-stepper";
 import { DrizzlePredictionRepository } from "#/adapters/db/prediction-repository";
+import { DrizzleGroupRepository } from "#/adapters/db/group-repository";
 import {
   shapeMatchRows,
   formatKickoffUtc,
@@ -45,6 +46,8 @@ interface LoaderData {
   matches: MatchListItem[];
   userId: string | null;
   vapidPublicKey: string | null;
+  /** The current user's group IDs — powers the "Ver predicciones del grupo" drawer. */
+  groupIds: string[];
 }
 
 type FilterTab = "all" | "predict" | "live" | "results";
@@ -101,10 +104,20 @@ const getMatches = createServerFn({ method: "GET" }).handler(
 
     const matches = shapeMatchRows(rows, userPredictionMap, clock.now());
 
+    // The user's groups — drives the "Ver predicciones del grupo" drawer on
+    // locked/live/finished cards. Empty for logged-out users.
+    let groupIds: string[] = [];
+    if (userId) {
+      const groupRepo = new DrizzleGroupRepository(db);
+      const groups = await groupRepo.listByUser(userId);
+      groupIds = groups.map((g) => g.id);
+    }
+
     return {
       matches,
       userId,
       vapidPublicKey: process.env["VAPID_PUBLIC_KEY"] ?? null,
+      groupIds,
     };
   }
 );
@@ -365,9 +378,11 @@ function ScoreBreakdown({ match }: { match: MatchListItem }) {
 function LockedMatchCard({
   match,
   onTeamPress,
+  groupIds,
 }: {
   match: MatchListItem;
   onTeamPress: (code: string | null, name: string) => void;
+  groupIds: string[];
 }) {
   return (
     <article
@@ -427,7 +442,7 @@ function LockedMatchCard({
         matchId={match.id}
         kickoffUtc={match.kickoffUtc}
         locked={match.locked}
-        groupIds={[]}
+        groupIds={groupIds}
       />
     </article>
   );
@@ -437,9 +452,11 @@ function LockedMatchCard({
 function LiveResultCard({
   match,
   onTeamPress,
+  groupIds,
 }: {
   match: MatchListItem;
   onTeamPress: (code: string | null, name: string) => void;
+  groupIds: string[];
 }) {
   return (
     <article
@@ -489,6 +506,13 @@ function LiveResultCard({
           </span>
         </p>
       )}
+
+      <PredictionDrawer
+        matchId={match.id}
+        kickoffUtc={match.kickoffUtc}
+        locked={true}
+        groupIds={groupIds}
+      />
     </article>
   );
 }
@@ -497,9 +521,11 @@ function LiveResultCard({
 function FinishedMatchCard({
   match,
   onTeamPress,
+  groupIds,
 }: {
   match: MatchListItem;
   onTeamPress: (code: string | null, name: string) => void;
+  groupIds: string[];
 }) {
   return (
     <article
@@ -538,7 +564,7 @@ function FinishedMatchCard({
         matchId={match.id}
         kickoffUtc={match.kickoffUtc}
         locked={true}
-        groupIds={[]}
+        groupIds={groupIds}
       />
     </article>
   );
@@ -598,7 +624,7 @@ const MemoizedPredictableMatchCard = memo(PredictableMatchCard);
 // ---------------------------------------------------------------------------
 
 function MatchListPage() {
-  const { matches, userId, vapidPublicKey } = Route.useLoaderData();
+  const { matches, userId, vapidPublicKey, groupIds } = Route.useLoaderData();
   const [tab, setTab] = useState<FilterTab>("all");
   const [teamSheet, setTeamSheet] = useState<{
     open: boolean;
@@ -709,6 +735,7 @@ function MatchListPage() {
                   key={m.id}
                   match={m}
                   userId={userId}
+                  groupIds={groupIds}
                   onTeamPress={handleTeamPress}
                 />
               ))}
@@ -722,7 +749,7 @@ function MatchListPage() {
                 En vivo
               </h2>
               {live.map((m) => (
-                <LiveResultCard key={m.id} match={m} onTeamPress={handleTeamPress} />
+                <LiveResultCard key={m.id} match={m} groupIds={groupIds} onTeamPress={handleTeamPress} />
               ))}
             </section>
           )}
@@ -741,7 +768,7 @@ function MatchListPage() {
                 Resultados
               </h2>
               {finished.map((m) => (
-                <FinishedMatchCard key={m.id} match={m} onTeamPress={handleTeamPress} />
+                <FinishedMatchCard key={m.id} match={m} groupIds={groupIds} onTeamPress={handleTeamPress} />
               ))}
             </section>
           )}
@@ -760,7 +787,7 @@ function MatchListPage() {
                 Próximos cerrados
               </h2>
               {locked.map((m) => (
-                <LockedMatchCard key={m.id} match={m} onTeamPress={handleTeamPress} />
+                <LockedMatchCard key={m.id} match={m} groupIds={groupIds} onTeamPress={handleTeamPress} />
               ))}
             </section>
           )}

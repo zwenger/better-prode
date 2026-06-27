@@ -122,6 +122,30 @@ test.describe("Groups — create, invite, join, shared leaderboard", () => {
     ).toBeVisible({ timeout: 10000 });
   });
 
+  test("live match card shows the group-predictions drawer for a group member", async () => {
+    await seedUserAndInjectSession(pageA, contextA, TEST_USER);
+    await pageA.goto("/matches");
+
+    // The seeded in_progress match renders in the "En vivo" section.
+    const liveCard = pageA.locator('[data-match-id="e2e-match-live"]');
+    await expect(liveCard).toBeVisible({ timeout: 10000 });
+
+    // Because the user belongs to a group, the drawer trigger now appears on the
+    // live card. Previously every call site hard-coded groupIds=[] so it was
+    // hidden everywhere, and the live card never rendered the drawer at all.
+    const trigger = liveCard.getByTestId("open-prediction-drawer");
+    await expect(trigger).toBeVisible({ timeout: 10000 });
+
+    // Opening it succeeds: the match is locked (in_progress), so the server
+    // reveals the group's predictions — body shows entries or the empty state,
+    // never the error state.
+    await trigger.click();
+    const empty = pageA.getByTestId("drawer-empty");
+    const entry = pageA.getByTestId("drawer-prediction-entry").first();
+    await expect(empty.or(entry)).toBeVisible({ timeout: 10000 });
+    await expect(pageA.getByTestId("drawer-error")).toHaveCount(0);
+  });
+
   test("second user joins via invite link and sees the group in their list", async () => {
     await seedUserAndInjectSession(pageA, contextA, TEST_USER);
     await seedUserAndInjectSession(pageB, contextB, SECOND_USER);
