@@ -91,7 +91,10 @@ const getLeaderboardData = createServerFn({ method: "GET", strict: false })
     }
 
     const predRepo = new DrizzlePredictionRepository(db);
-    const tournamentId = data.tournamentId ?? "wc-2026";
+    // Default to the app's single tournament. MUST match the id used everywhere
+    // else (cron/refresh: process.env.TOURNAMENT_ID ?? "17-285023") — the old
+    // "wc-2026" placeholder matched no rows, so every leaderboard summed to 0.
+    const tournamentId = data.tournamentId ?? process.env["TOURNAMENT_ID"] ?? "17-285023";
 
     // Task 4.4: Cache-first read
     const cache = resolveLeaderboardCache();

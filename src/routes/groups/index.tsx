@@ -70,7 +70,10 @@ const getMyGroupsWithStandings = createServerFn({ method: "GET" }).handler(
       role: g.role,
     }));
 
-    const tournamentId = "wc-2026";
+    // The app's single tournament. MUST match the id used everywhere else
+    // (cron/refresh: process.env.TOURNAMENT_ID ?? "17-285023") — the old
+    // "wc-2026" placeholder matched no rows, so every standings row showed 0 pts.
+    const tournamentId = process.env["TOURNAMENT_ID"] ?? "17-285023";
 
     if (groupItems.length === 0) {
       return {
