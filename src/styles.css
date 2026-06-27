@@ -9,8 +9,56 @@
 
 @custom-variant dark (&:is(.dark *));
 
-:root {
-  /* shadcn semantic tokens → OKLCH palette */
+:root,
+[data-theme="kanagawa-wave"] {
+  /* Active theme — Kanagawa Wave (dark). shadcn semantic tokens → OKLCH. */
+  --background: oklch(0.243 0.017 285.1);
+  --foreground: oklch(0.876 0.039 99.1);
+  --card: oklch(0.243 0.017 285.1);
+  --card-foreground: oklch(0.876 0.039 99.1);
+  --popover: oklch(0.243 0.017 285.1);
+  --popover-foreground: oklch(0.876 0.039 99.1);
+  --primary: oklch(0.748 0.112 128.4);
+  --primary-foreground: oklch(0.243 0.017 285.1);
+  --secondary: oklch(0.291 0.024 284.8);
+  --secondary-foreground: oklch(0.876 0.039 99.1);
+  --muted: oklch(0.291 0.024 284.8);
+  --muted-foreground: oklch(0.673 0.027 298.4);
+  --accent: oklch(0.291 0.024 284.8);
+  --accent-foreground: oklch(0.876 0.039 99.1);
+  --destructive: oklch(0.671 0.154 15.3);
+  --destructive-foreground: oklch(0.243 0.017 285.1);
+  --border: oklch(0.340 0.028 284.8);
+  --input: oklch(0.340 0.028 284.8);
+  --ring: oklch(0.748 0.112 128.4);
+  --radius: 0.75rem;
+
+  /* Custom semantic tokens */
+  --pitch-green: oklch(0.748 0.112 128.4);
+  --pitch-green-deep: oklch(0.682 0.122 130.5);
+  --pitch-green-ink: oklch(0.819 0.101 126.4);
+  --pitch-green-tint: oklch(0.308 0.026 136.1);
+  --glory-gold: oklch(0.833 0.090 81.6);
+  --glory-gold-ink: oklch(0.310 0.047 88.7);
+  --glory-gold-tint: oklch(0.307 0.029 99.4);
+  --ink: oklch(0.876 0.039 99.1);
+  --ink-muted: oklch(0.673 0.027 298.4);
+  --surface: oklch(0.243 0.017 285.1);
+  --surface-subtle: oklch(0.291 0.024 284.8);
+  --border-hairline: oklch(0.340 0.028 284.8);
+  --miss-red: oklch(0.671 0.154 15.3);
+  --miss-red-ink: oklch(0.760 0.114 13.3);
+  --miss-red-tint: oklch(0.287 0.036 2.6);
+  --live-red: oklch(0.693 0.197 22.1);
+}
+
+/* ───────────────────────────────────────────────────────────────
+   Saved themes for the future in-app theme selector.
+   Each block is self-contained — apply via <html data-theme="…">.
+   ─────────────────────────────────────────────────────────────── */
+
+/* Verde cancha — original light theme */
+[data-theme="cancha"] {
   --background: oklch(1 0 0);
   --foreground: oklch(0.22 0.015 152);
   --card: oklch(1 0 0);
@@ -32,7 +80,6 @@
   --ring: oklch(0.48 0.12 150);
   --radius: 0.75rem;
 
-  /* Custom semantic tokens */
   --pitch-green: oklch(0.48 0.12 150);
   --pitch-green-deep: oklch(0.42 0.12 150);
   --pitch-green-ink: oklch(0.38 0.10 150);
@@ -51,7 +98,8 @@
   --live-red: oklch(0.62 0.21 25);
 }
 
-.dark {
+/* Verde cancha — original dark theme */
+[data-theme="cancha-dark"] {
   --background: oklch(0.14 0.012 152);
   --foreground: oklch(0.96 0.008 150);
   --card: oklch(0.18 0.010 150);
@@ -71,8 +119,8 @@
   --border: oklch(0.28 0.008 152);
   --input: oklch(0.28 0.008 152);
   --ring: oklch(0.60 0.13 150);
+  --radius: 0.75rem;
 
-  /* Custom dark overrides */
   --pitch-green: oklch(0.60 0.13 150);
   --pitch-green-deep: oklch(0.52 0.12 150);
   --pitch-green-ink: oklch(0.75 0.10 150);
@@ -85,7 +133,10 @@
   --surface: oklch(0.18 0.010 150);
   --surface-subtle: oklch(0.22 0.008 150);
   --border-hairline: oklch(0.28 0.008 152);
+  --miss-red: oklch(0.56 0.20 27);
+  --miss-red-ink: oklch(0.45 0.16 27);
   --miss-red-tint: oklch(0.22 0.06 25);
+  --live-red: oklch(0.62 0.21 25);
 }
 
 @theme inline {
