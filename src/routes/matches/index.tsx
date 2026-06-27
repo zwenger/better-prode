@@ -483,6 +483,17 @@ function LiveResultCard({
           onPress={() => onTeamPress(match.awayCode, match.awayName)}
         />
       </div>
+      {match.userPrediction && (
+        <p
+          className="mt-3 text-center text-xs text-muted-foreground"
+          data-testid="user-prediction"
+        >
+          Tu predicción{" "}
+          <span className="font-semibold tabular-nums text-foreground">
+            {match.userPrediction.homeGoals}:{match.userPrediction.awayGoals}
+          </span>
+        </p>
+      )}
     </article>
   );
 }

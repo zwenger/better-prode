@@ -448,6 +448,65 @@ export class MatchDO implements DurableObject {
     });
   }
 
+  /**
+   * Apply a settle command to the configured DB through the domain choke point
+   * (applyMatchResult). Returns null on success, or a 500 Response describing
+   * the failure. When TURSO_DATABASE_URL is empty (the workers unit-test pool),
+   * the DB step is skipped and null is returned so DO-storage assertions still
+   * work in isolation. applyMatchResult only invalidates the cache for finished
+   * results, so passing cacheOptions is harmless for in_progress updates.
+   */
+  private async _applyResultToDb(command: SettleCommand): Promise<Response | null> {
+    if (this.env.TURSO_DATABASE_URL === "") return null;
+
+    try {
+      // In the Workers/workerd environment @libsql/client uses the HTTP (web)
+      // client, which requires an https:// URL — convert libsql:// → https://
+      // so the SDK can reach Turso over HTTP/2 without WebSocket support.
+      const rawUrl = this.env.TURSO_DATABASE_URL;
+      const dbUrl = rawUrl.startsWith("libsql://")
+        ? rawUrl.replace("libsql://", "https://")
+        : rawUrl;
+
+      const client = createClient({
+        url: dbUrl,
+        authToken: this.env.TURSO_AUTH_TOKEN,
+      });
+      const db = createDrizzleDb(client);
+      const matchRepository = new DrizzleMatchRepository(db);
+      const predictionRepository = new DrizzlePredictionRepository(db);
+      const groupRepository = new DrizzleGroupRepository(db);
+
+      // W-1 fix: invalidate leaderboard cache after settlement so stale
+      // rankings are evicted from the edge cache immediately.
+      // CacheApiLeaderboardCache uses the Cloudflare Cache API (Workers runtime).
+      const leaderboardCache = new CacheApiLeaderboardCache();
+
+      await applyMatchResult(
+        {
+          matchId: command.matchId,
+          homeScore: command.homeScore,
+          awayScore: command.awayScore,
+          status: command.status,
+          source: command.source,
+        },
+        { matchRepository, predictionRepository },
+        new SystemClock(),
+        {
+          cache: leaderboardCache,
+          listGroupIdsByTournament: (tournamentId: string) =>
+            groupRepository.listGroupIdsByTournament(tournamentId),
+        }
+      );
+
+      client.close();
+      return null;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return Response.json({ error: message }, { status: 500 });
+    }
+  }
+
   private async _doSettle(command: SettleCommand): Promise<Response> {
     // Read current state from durable storage
     const stored = await this.state.storage.get<{
@@ -456,6 +515,38 @@ export class MatchDO implements DurableObject {
       resultSource: string;
       settleCount: number;
     }>("result");
+
+    // Transient in_progress / scheduled update — drives the live "En vivo" pill
+    // and bet-lock. It must NEVER acquire the single-flight lock (we do NOT write
+    // the "result" key here): the cron polls every 5 min and catches matches
+    // mid-game, so an in_progress write must not block the eventual finished
+    // settlement from being applied.
+    if (command.status !== "finished") {
+      // A finished result is already stored → this is a stale/late live update.
+      // Ignore it (never downgrade a settled match) and echo the settled result.
+      if (stored !== undefined) {
+        const settledResult: SettleResult = {
+          settled: true,
+          settleCount: stored.settleCount,
+          homeScore: stored.homeScore,
+          awayScore: stored.awayScore,
+          resultSource: stored.resultSource,
+        };
+        return Response.json(settledResult);
+      }
+
+      const dbError = await this._applyResultToDb(command);
+      if (dbError) return dbError;
+
+      const liveResult: SettleResult = {
+        settled: false,
+        settleCount: 0,
+        homeScore: command.homeScore,
+        awayScore: command.awayScore,
+        resultSource: command.source,
+      };
+      return Response.json(liveResult);
+    }
 
     // Idempotency: same score + same source → no-op
     if (
@@ -508,53 +599,8 @@ export class MatchDO implements DurableObject {
     // non-empty URL, so the skip path is never reachable in prod.
     // The DO's guards (above) serialize access and prevent double-writes;
     // applyMatchResult has its own idempotency + manual-pin guards as defense-in-depth.
-    if (this.env.TURSO_DATABASE_URL !== "") {
-      try {
-        // In the Workers/workerd environment @libsql/client uses the HTTP (web) client.
-        // The HTTP client requires an https:// URL — convert libsql:// → https:// so
-        // the SDK can reach Turso over HTTP/2 without WebSocket support.
-        const rawUrl = this.env.TURSO_DATABASE_URL;
-        const dbUrl = rawUrl.startsWith("libsql://")
-          ? rawUrl.replace("libsql://", "https://")
-          : rawUrl;
-
-        const client = createClient({
-          url: dbUrl,
-          authToken: this.env.TURSO_AUTH_TOKEN,
-        });
-        const db = createDrizzleDb(client);
-        const matchRepository = new DrizzleMatchRepository(db);
-        const predictionRepository = new DrizzlePredictionRepository(db);
-        const groupRepository = new DrizzleGroupRepository(db);
-
-        // W-1 fix: invalidate leaderboard cache after settlement so stale
-        // rankings are evicted from the edge cache immediately.
-        // CacheApiLeaderboardCache uses the Cloudflare Cache API (Workers runtime).
-        const leaderboardCache = new CacheApiLeaderboardCache();
-
-        await applyMatchResult(
-          {
-            matchId: command.matchId,
-            homeScore: command.homeScore,
-            awayScore: command.awayScore,
-            status: command.status,
-            source: command.source,
-          },
-          { matchRepository, predictionRepository },
-          new SystemClock(),
-          {
-            cache: leaderboardCache,
-            listGroupIdsByTournament: (tournamentId: string) =>
-              groupRepository.listGroupIdsByTournament(tournamentId),
-          }
-        );
-
-        client.close();
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        return Response.json({ error: message }, { status: 500 });
-      }
-    }
+    const dbError = await this._applyResultToDb(command);
+    if (dbError) return dbError;
 
     // Persist the settled result in DO storage so the idempotency + manual-pin
     // guards work correctly on subsequent calls (without another DB round-trip).
