@@ -13,7 +13,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
-import { usePushSubscription } from "#/hooks/usePushSubscription";
 import { asc, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { getDb } from "#/infra/db/client";
@@ -46,7 +45,6 @@ import { PredictableMatchCard } from "#/components/predictable-match-card";
 interface LoaderData {
   matches: MatchListItem[];
   userId: string | null;
-  vapidPublicKey: string | null;
   /** The current user's group IDs — powers the "Ver predicciones del grupo" drawer. */
   groupIds: string[];
 }
@@ -117,7 +115,6 @@ const getMatches = createServerFn({ method: "GET" }).handler(
     return {
       matches,
       userId,
-      vapidPublicKey: process.env["VAPID_PUBLIC_KEY"] ?? null,
       groupIds,
     };
   }
@@ -142,41 +139,6 @@ function getOutcome(g: GoalCount): "home" | "draw" | "away" {
   return "draw";
 }
 
-// ---------------------------------------------------------------------------
-// RemindersButton
-// ---------------------------------------------------------------------------
-
-function RemindersButton({ vapidPublicKey }: { vapidPublicKey: string }) {
-  const { isSupported, isSubscribed, isLoading, error, subscribe } =
-    usePushSubscription({ vapidPublicKey });
-
-  if (!isSupported) return null;
-
-  return (
-    <div className="px-4 mb-3">
-      <button
-        type="button"
-        onClick={() => {
-          void subscribe();
-        }}
-        disabled={isLoading || isSubscribed}
-        className="w-full py-2 px-4 rounded border border-primary text-primary text-sm font-medium disabled:opacity-50 disabled:cursor-default"
-        data-testid="reminders-button"
-      >
-        {isLoading
-          ? "Activando…"
-          : isSubscribed
-            ? "Recordatorios activados"
-            : "Activar recordatorios"}
-      </button>
-      {error && (
-        <p className="mt-1 text-xs text-destructive" role="alert">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // ScoreBreakdown (adapted from today.tsx — for FinishedMatchCard)
@@ -634,7 +596,7 @@ const MemoizedPredictableMatchCard = memo(PredictableMatchCard);
 // ---------------------------------------------------------------------------
 
 function MatchListPage() {
-  const { matches, userId, vapidPublicKey, groupIds } = Route.useLoaderData();
+  const { matches, userId, groupIds } = Route.useLoaderData();
   const [tab, setTab] = useState<FilterTab>("all");
   const [teamSheet, setTeamSheet] = useState<{
     open: boolean;
@@ -706,11 +668,6 @@ function MatchListPage() {
             Partidos
           </h1>
         </header>
-
-        {/* Reminders button */}
-        {userId && vapidPublicKey && (
-          <RemindersButton vapidPublicKey={vapidPublicKey} />
-        )}
 
         {/* Filter chips */}
         <FilterChips tab={tab} onSelect={setTab} />

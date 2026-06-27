@@ -62,7 +62,6 @@ function toDayLabel(dateStr: string, anchorDate: string): string {
 interface TodayLoaderData {
   matches: MatchListItem[];
   userId: string;
-  vapidPublicKey: string | null;
   anchorDate: string;
   /** The current user's group IDs — powers the "Ver predicciones del grupo" drawer. */
   groupIds: string[];
@@ -148,7 +147,6 @@ const getTodayMatches = createServerFn({ method: "GET" }).handler(
     return {
       matches,
       userId,
-      vapidPublicKey: process.env["VAPID_PUBLIC_KEY"] ?? null,
       anchorDate,
       groupIds,
     };
