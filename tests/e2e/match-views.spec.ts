@@ -77,6 +77,18 @@ test.describe("Match Views — match list, predictions, drawer", () => {
   // 4.8.2: Prediction entry before lock — steppers active
   // ---------------------------------------------------------------------------
 
+  test("match card links to the match detail page", async () => {
+    await seedUserAndInjectSession(page, context, matchViewsUser);
+    await page.goto("/matches");
+
+    const detailLink = page.getByTestId("match-detail-link").first();
+    await expect(detailLink).toBeVisible({ timeout: 10000 });
+    await detailLink.click();
+
+    // Navigates to /matches/<matchId>
+    await expect(page).toHaveURL(/\/matches\/[^/]+$/, { timeout: 10000 });
+  });
+
   test("prediction steppers are active for unlocked matches", async () => {
     await seedUserAndInjectSession(page, context, matchViewsUser);
     await page.goto("/matches");

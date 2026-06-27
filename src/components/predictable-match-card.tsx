@@ -33,6 +33,7 @@ import { useState, useEffect, useRef } from "react";
 import { ScoreStepper } from "#/components/score-stepper";
 import { TeamButton } from "#/components/team-button";
 import { PredictionDrawer } from "#/components/prediction-drawer";
+import { MatchDetailLink } from "#/components/match-detail-link";
 import { formatKickoffUtc } from "#/routes/matches/-match-list-loader";
 import type { MatchListItem } from "#/routes/matches/-match-list-loader";
 
@@ -235,9 +236,12 @@ export function PredictableMatchCard({
         <span className="text-xs font-semibold text-muted-foreground">
           {match.groupLabel ?? ""}
         </span>
-        <span className="text-xs text-muted-foreground tabular-nums">
-          {formatKickoffUtc(match.kickoffUtc)}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {formatKickoffUtc(match.kickoffUtc)}
+          </span>
+          <MatchDetailLink matchId={match.id} />
+        </div>
       </div>
 
       {/* Teams */}

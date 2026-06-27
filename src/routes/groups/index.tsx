@@ -360,6 +360,27 @@ function GroupsPage() {
           </Link>
         </div>
 
+        {/* Selected group: name + permanent link to members */}
+        {selectedGroupId && (
+          <div className="flex items-center justify-between px-4 pb-2">
+            <h2
+              className="font-bold"
+              style={{ fontFamily: "Archivo, sans-serif", fontSize: "1.125rem" }}
+            >
+              {groups.find((g) => g.id === selectedGroupId)?.name}
+            </h2>
+            <Link
+              to="/groups/$groupId/members"
+              params={{ groupId: selectedGroupId }}
+              className="shrink-0 rounded-full border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+              style={{ color: "var(--pitch-green-ink)" }}
+              data-testid="groups-members-link"
+            >
+              Miembros
+            </Link>
+          </div>
+        )}
+
         {/* Invite link for the selected group (owner/admin only) */}
         {canManageInvite && selectedGroupId && (
           <div className="px-4 pb-2" data-testid="groups-invite-section">
@@ -428,6 +449,21 @@ function GroupsPage() {
             }
           />
         </section>
+
+        {/* Link to the full leaderboard page */}
+        {selectedGroupId && (
+          <div className="px-4 pt-3">
+            <Link
+              to="/leaderboard/$groupId"
+              params={{ groupId: selectedGroupId }}
+              className="flex items-center justify-center text-sm font-medium hover:underline"
+              style={{ color: "var(--pitch-green-ink)" }}
+              data-testid="groups-leaderboard-link"
+            >
+              Ver tabla completa
+            </Link>
+          </div>
+        )}
 
         {/* Invite code */}
         <div className="px-4 pt-6 pb-4">

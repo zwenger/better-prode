@@ -32,6 +32,7 @@ import {
 import type { MatchListItem } from "#/routes/matches/-match-list-loader";
 import { AppShell } from "#/components/app-shell";
 import { PredictionDrawer } from "#/components/prediction-drawer";
+import { MatchDetailLink } from "#/components/match-detail-link";
 import { score } from "#/domain/scoring";
 import type { GoalCount } from "#/domain/scoring";
 import { TeamButton } from "#/components/team-button";
@@ -296,7 +297,7 @@ function ScoreBreakdown({ match }: { match: MatchListItem }) {
           fontWeight: 700,
         };
 
-  const badgeLabel = isPleno ? "PLENO ✦ +7" : `+${pts}`;
+  const badgeLabel = isPleno ? "✦ +7" : `+${pts}`;
 
   const homeDisplayName = match.homeName;
   const awayDisplayName = match.awayName;
@@ -395,9 +396,12 @@ function LockedMatchCard({
         <span className="text-xs font-semibold text-muted-foreground">
           {match.groupLabel ?? ""}
         </span>
-        <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-          Cerrado · {formatKickoffUtc(match.kickoffUtc)}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
+            Cerrado · {formatKickoffUtc(match.kickoffUtc)}
+          </span>
+          <MatchDetailLink matchId={match.id} />
+        </div>
       </div>
 
       {/* Teams */}
@@ -468,12 +472,15 @@ function LiveResultCard({
         <span className="text-xs font-semibold text-muted-foreground">
           {match.groupLabel ?? ""}
         </span>
-        <span
-          className="text-xs font-semibold"
-          style={{ color: "var(--live-red)" }}
-        >
-          ● EN VIVO
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span
+            className="text-xs font-semibold"
+            style={{ color: "var(--live-red)" }}
+          >
+            ● EN VIVO
+          </span>
+          <MatchDetailLink matchId={match.id} />
+        </div>
       </div>
       <div className="flex items-center justify-between gap-3">
         <TeamButton
@@ -537,9 +544,12 @@ function FinishedMatchCard({
         <span className="text-xs font-semibold text-muted-foreground">
           {match.groupLabel ?? ""}
         </span>
-        <span className="text-xs text-muted-foreground tabular-nums">
-          {formatKickoffUtc(match.kickoffUtc)}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {formatKickoffUtc(match.kickoffUtc)}
+          </span>
+          <MatchDetailLink matchId={match.id} />
+        </div>
       </div>
 
       <div className="flex items-center justify-between gap-2 mb-3">

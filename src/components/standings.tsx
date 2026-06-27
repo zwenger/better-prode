@@ -163,7 +163,7 @@ function MemberPredictionRow({ entry }: { entry: MemberPredictionEntry }) {
           fontWeight: 700,
         };
 
-  const badgeLabel = isPleno ? "PLENO ✦ +7" : entry.points !== null ? `+${entry.points}` : "--";
+  const badgeLabel = isPleno ? "✦ +7" : entry.points !== null ? `+${entry.points}` : "--";
 
   if (isFinished && hasResult) {
     const pickOutcome = getOutcome(entry.predHomeGoals, entry.predAwayGoals);

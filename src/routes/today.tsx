@@ -31,6 +31,7 @@ import { TeamButton } from "#/components/team-button";
 import { TeamSheet } from "#/components/team-sheet";
 import { PredictableMatchCard } from "#/components/predictable-match-card";
 import { PredictionDrawer } from "#/components/prediction-drawer";
+import { MatchDetailLink } from "#/components/match-detail-link";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -209,9 +210,12 @@ function LockedMatchCard({
         <span className="text-xs font-semibold text-muted-foreground">
           {match.groupLabel ?? ""}
         </span>
-        <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-          Cerrado
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
+            Cerrado
+          </span>
+          <MatchDetailLink matchId={match.id} />
+        </div>
       </div>
       <div className="flex items-center justify-between gap-2">
         <TeamButton
@@ -252,12 +256,15 @@ function LiveMatchCard({
         <span className="text-xs font-semibold text-muted-foreground">
           {match.groupLabel ?? ""}
         </span>
-        <span
-          className="text-xs font-semibold"
-          style={{ color: "var(--live-red)" }}
-        >
-          ● EN VIVO
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span
+            className="text-xs font-semibold"
+            style={{ color: "var(--live-red)" }}
+          >
+            ● EN VIVO
+          </span>
+          <MatchDetailLink matchId={match.id} />
+        </div>
       </div>
       <div className="flex items-center justify-between gap-3">
         <TeamButton
@@ -426,7 +433,7 @@ function ScoreBreakdown({ match }: { match: MatchListItem }) {
           fontWeight: 700,
         };
 
-  const badgeLabel = isPleno ? "PLENO ✦ +7" : `+${pts}`;
+  const badgeLabel = isPleno ? "✦ +7" : `+${pts}`;
 
   const homeDisplayName = match.homeName;
   const awayDisplayName = match.awayName;

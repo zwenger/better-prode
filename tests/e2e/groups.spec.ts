@@ -122,6 +122,27 @@ test.describe("Groups — create, invite, join, shared leaderboard", () => {
     ).toBeVisible({ timeout: 10000 });
   });
 
+  test("groups page links to members and the full leaderboard", async () => {
+    await seedUserAndInjectSession(pageA, contextA, TEST_USER);
+    await pageA.goto("/groups?group=group-e2e-test");
+    await expect(pageA.locator("[data-testid='groups-list-page']")).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Permanent link to the members page.
+    const membersLink = pageA.getByTestId("groups-members-link");
+    await expect(membersLink).toBeVisible({ timeout: 10000 });
+    await membersLink.click();
+    await expect(pageA).toHaveURL(/\/groups\/group-e2e-test\/members/, { timeout: 10000 });
+
+    // Link to the full leaderboard page.
+    await pageA.goto("/groups?group=group-e2e-test");
+    const tablaLink = pageA.getByTestId("groups-leaderboard-link");
+    await expect(tablaLink).toBeVisible({ timeout: 10000 });
+    await tablaLink.click();
+    await expect(pageA).toHaveURL(/\/leaderboard\/group-e2e-test/, { timeout: 10000 });
+  });
+
   test("live match card shows the group-predictions drawer for a group member", async () => {
     await seedUserAndInjectSession(pageA, contextA, TEST_USER);
     await pageA.goto("/matches");
