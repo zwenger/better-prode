@@ -50,6 +50,26 @@ export function formatKickoffUtc(kickoffUtc: string, timeZone?: string): string 
   });
 }
 
+/**
+ * Compact kickoff label for tight rows (team-sheet upcoming/recent lists).
+ *
+ * Drops the year AND the timezone label that formatKickoffUtc carries: next to
+ * a full team name those make the verbose string overflow the row. Month + day
+ * + time is enough context inside a team's own match list.
+ *
+ * @param kickoffUtc - ISO 8601 UTC string
+ * @param timeZone   - Optional IANA timezone (tests pass it for determinism).
+ */
+export function formatKickoffShort(kickoffUtc: string, timeZone?: string): string {
+  return new Date(kickoffUtc).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    ...(timeZone ? { timeZone } : {}),
+  });
+}
+
 export interface UserPrediction {
   homeGoals: number;
   awayGoals: number;

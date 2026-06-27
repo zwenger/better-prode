@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { shapeMatchRows, formatKickoffUtc } from "./-match-list-loader";
+import { shapeMatchRows, formatKickoffUtc, formatKickoffShort } from "./-match-list-loader";
 
 const FUTURE_STR = "2026-07-15T20:00:00.000Z"; // well in future → unlocked
 
@@ -102,6 +102,36 @@ describe("formatKickoffUtc (W-2 — timezone label)", () => {
     // Must include timezone label
     const hasTzLabel = /BST/.test(result) || /GMT\+1/.test(result) || /\b[A-Z]{2,5}\b/.test(result);
     expect(hasTzLabel).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatKickoffShort — compact label for tight rows (team sheet upcoming/recent).
+// Drops the year AND the timezone label so a long verbose date no longer
+// overflows next to a full team name.
+// ---------------------------------------------------------------------------
+
+describe("formatKickoffShort (compact, no year, no tz)", () => {
+  const SAMPLE_UTC = "2026-06-14T15:00:00.000Z";
+
+  it("returns a non-empty string", () => {
+    const result = formatKickoffShort(SAMPLE_UTC);
+    expect(typeof result).toBe("string");
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it("includes the day and time but NOT the year", () => {
+    // 15:00Z → 12:00 in UTC-3 (Buenos Aires, fixed offset)
+    const result = formatKickoffShort(SAMPLE_UTC, "America/Argentina/Buenos_Aires");
+    expect(result).toContain("14"); // day
+    expect(result).toContain("12"); // local hour
+    expect(result).not.toContain("2026"); // year dropped
+  });
+
+  it("omits the timezone label", () => {
+    const result = formatKickoffShort(SAMPLE_UTC, "America/Argentina/Buenos_Aires");
+    expect(/\bGMT[+-]?\d*\b/.test(result)).toBe(false);
+    expect(/\bUTC\b/.test(result)).toBe(false);
   });
 });
 

@@ -22,7 +22,7 @@ import {
   DrawerClose,
 } from "#/components/ui/drawer";
 import { TeamFlag } from "#/components/team-flag";
-import { formatKickoffUtc } from "#/routes/matches/-match-list-loader";
+import { formatKickoffShort } from "#/routes/matches/-match-list-loader";
 import { getTeamMatchesFn } from "#/routes/matches/-team-matches";
 import type { TeamMatchRow } from "#/adapters/db/match-repository";
 
@@ -250,29 +250,29 @@ export function TeamSheet({
                 scheduled.map((m) => (
                   <div
                     key={m.id}
-                    className="flex items-center justify-between py-2 border-b border-border"
+                    className="flex items-center justify-between gap-3 py-2 border-b border-border"
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
                       <TeamFlag code={m.homeCode} />
-                      <span className="text-sm font-medium">
+                      <span className="text-sm font-medium truncate">
                         {m.homeName}
                       </span>
                       <span
-                        className="text-xs"
+                        className="text-xs shrink-0"
                         style={{ color: "var(--ink-muted)" }}
                       >
                         vs
                       </span>
                       <TeamFlag code={m.awayCode} />
-                      <span className="text-sm font-medium">
+                      <span className="text-sm font-medium truncate">
                         {m.awayName}
                       </span>
                     </div>
                     <span
-                      className="text-xs tabular-nums"
+                      className="text-xs tabular-nums shrink-0"
                       style={{ color: "var(--ink-muted)" }}
                     >
-                      {formatKickoffUtc(m.kickoffUtc)}
+                      {formatKickoffShort(m.kickoffUtc)}
                     </span>
                   </div>
                 ))
