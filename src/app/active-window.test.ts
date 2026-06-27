@@ -47,10 +47,28 @@ describe("hasActiveWindowMatches", () => {
     ).toBe(false);
   });
 
-  it("match kicked off 7h ago (beyond default lookbackHours=6) → false", () => {
+  it("match kicked off 7h ago (within default lookbackHours=24) → true", () => {
     expect(
       hasActiveWindowMatches(
         [{ status: "scheduled", kickoffUtc: hoursAgo(7) }],
+        NOW
+      )
+    ).toBe(true);
+  });
+
+  it("regression: in_progress match kicked off 13h ago → true (stranded finished-but-unsettled match self-recovers on next cron tick)", () => {
+    expect(
+      hasActiveWindowMatches(
+        [{ status: "in_progress", kickoffUtc: hoursAgo(13) }],
+        NOW
+      )
+    ).toBe(true);
+  });
+
+  it("match kicked off 25h ago (beyond default lookbackHours=24) → false", () => {
+    expect(
+      hasActiveWindowMatches(
+        [{ status: "scheduled", kickoffUtc: hoursAgo(25) }],
         NOW
       )
     ).toBe(false);

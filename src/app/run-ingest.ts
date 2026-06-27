@@ -8,9 +8,9 @@
  *   #1 — extract shared runIngest so cron scheduled() and admin server fn
  *        share identical dep-wiring; env is the only difference.
  *   #2 — dynamic active-window gate: listUnsettled → hasActiveWindowMatches;
- *        only call FIFA when at least one match is in the 6h active window.
+ *        only call FIFA when at least one match is in the 24h active window.
  *        The gate is BYPASSED for the manual admin backstop path so it can
- *        settle matches older than 6h (e.g. stuck matches from previous days).
+ *        settle matches older than 24h (e.g. stuck matches from previous days).
  *
  * Gate behaviour by caller:
  *   - cron scheduled()   → gate ON  (default, no opts)
@@ -36,7 +36,7 @@ import { hasActiveWindowMatches } from "./active-window";
 
 export interface RunIngestOptions {
   /**
-   * When true, bypass the 6h active-window gate and settle any unsettled
+   * When true, bypass the 24h active-window gate and settle any unsettled
    * past match regardless of age. Intended for the manual admin backstop path.
    * Default: false (cron + on-demand stay window-gated).
    */
@@ -125,7 +125,7 @@ export function makeRunIngest(overrides: RunIngestOverrides) {
  * Reconcile unsettled matches for a tournament.
  *
  * 1. Queries DB for all past unsettled matches (status scheduled|in_progress, kickoff <= now).
- * 2. Unless skipWindowGate is true, gates on hasActiveWindowMatches (6h lookback) —
+ * 2. Unless skipWindowGate is true, gates on hasActiveWindowMatches (24h lookback) —
  *    skips the FIFA call when no match is in the active window.
  *    When skipWindowGate is true (manual admin backstop), proceeds regardless of age.
  * 3. Wires real deps (DB, FifaAdapter, MATCH_DO) and calls ingestMatchResults.

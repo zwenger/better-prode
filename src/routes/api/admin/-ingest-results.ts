@@ -181,7 +181,7 @@ export const ingestResults = createServerFn({ method: "GET" })
 
     // Delegate to the shared runIngest with skipWindowGate=true.
     // The manual admin backstop must settle ANY unsettled past match regardless
-    // of age — including matches >6h old that the cron/on-demand paths would NOOP.
+    // of age — including matches >24h old that the cron/on-demand paths would NOOP.
     // env source is the only difference vs. the cron path (cloudflare:workers vs. param).
     const { runIngest } = await import("#/app/run-ingest");
     const result = await runIngest(env, data.tournamentId, { skipWindowGate: true });

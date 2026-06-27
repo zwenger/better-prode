@@ -112,11 +112,11 @@ describe("runIngest (injected deps)", () => {
   // skipWindowGate option — manual admin backstop behaviour
   // ---------------------------------------------------------------------------
 
-  it("skipWindowGate=true: match outside 6h window → ingestMatchResults IS called (no NOOP)", async () => {
-    // Kickoff 10 hours ago — well outside the default 6h window.
+  it("skipWindowGate=true: match outside 24h window → ingestMatchResults IS called (no NOOP)", async () => {
+    // Kickoff 26 hours ago — well outside the default 24h window.
     const staleMatch: MatchRecord = {
       ...makeActiveMatch(),
-      kickoffUtc: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
+      kickoffUtc: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
     };
     const listUnsettled = vi.fn().mockResolvedValue([staleMatch]);
     const ingestMatchResults = vi.fn().mockResolvedValue(INGESTED_OUTPUT);
@@ -135,11 +135,11 @@ describe("runIngest (injected deps)", () => {
     expect(result).toEqual(INGESTED_OUTPUT);
   });
 
-  it("skipWindowGate=false (default): match outside 6h window → NOOP (gate enforced)", async () => {
-    // Kickoff 10 hours ago — outside the 6h window.
+  it("skipWindowGate=false (default): match outside 24h window → NOOP (gate enforced)", async () => {
+    // Kickoff 26 hours ago — outside the 24h window.
     const staleMatch: MatchRecord = {
       ...makeActiveMatch(),
-      kickoffUtc: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
+      kickoffUtc: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
     };
     const listUnsettled = vi.fn().mockResolvedValue([staleMatch]);
     const ingestMatchResults = vi.fn();

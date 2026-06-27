@@ -5,9 +5,14 @@
  * kicked off, is not yet finished, and is recent enough to be worth polling.
  *
  * Design decision #2 (result-refresh design):
- *   X = 6h default lookback. A match resolves within ~2h of kickoff; 6h
- *   gives ample buffer for extra time + VAR delays while stopping FIFA
- *   polling for ancient rows that are clearly settled.
+ *   X = 24h default lookback. A match resolves within ~3h of kickoff, but the
+ *   original 6h window permanently stranded any match that missed its
+ *   settlement window (e.g. prod ran broken code, cron downtime, or a deploy
+ *   gap during those hours): once kickoff aged past 6h the cron NOOPed forever
+ *   and the match never self-recovered. 24h keeps polling unsettled matches for
+ *   a full day so a transient gap self-heals on the next cron tick, while still
+ *   stopping FIFA polling for ancient rows. The FIFA call is a single request
+ *   that returns ALL matches, so a wider window costs nothing per extra match.
  *
  * Pure function — no Workers bindings, fully unit-testable.
  */
@@ -25,12 +30,12 @@ export interface ActiveWindowMatch {
  *
  * @param matches      Candidate matches (from listUnsettled).
  * @param now          Current timestamp (injected for testability).
- * @param lookbackHours Maximum age of a kicked-off match to still poll for. Default: 6.
+ * @param lookbackHours Maximum age of a kicked-off match to still poll for. Default: 24.
  */
 export function hasActiveWindowMatches(
   matches: ActiveWindowMatch[],
   now: Date,
-  lookbackHours = 6
+  lookbackHours = 24
 ): boolean {
   const nowMs = now.getTime();
   const floorMs = nowMs - lookbackHours * 60 * 60 * 1000;
