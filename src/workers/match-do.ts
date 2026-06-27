@@ -554,12 +554,34 @@ export class MatchDO implements DurableObject {
       return Response.json(liveResult);
     }
 
-    // Idempotency: same score + same source → no-op
+    // --- Finished settlement ---
+    //
+    // The DB is the AUTHORITATIVE source of truth for "already settled" — via
+    // applyMatchResult's own DB-based idempotency + manual-pin guards. DO storage
+    // is only a best-effort cache plus the alarm's settleCount signal; it MUST
+    // NOT gate the DB write. Previously the single-flight guard returned a 200
+    // no-op whenever ANY auto result was stored, BEFORE attempting the write. If
+    // that stored result was ever recorded without a successful DB write (e.g.
+    // the kickoff+150min safety-net alarm firing with its 0-0 default while the
+    // TURSO secret was empty), every later auto settlement was silently blocked
+    // and the match stayed in_progress forever — surviving redeploys, since DO
+    // storage persists. So we now ALWAYS attempt the DB apply first.
+    // applyMatchResult is idempotent (a no-op when the DB already matches the
+    // command) and is skipped only in the workers unit-test pool where
+    // TURSO_DATABASE_URL is empty. The _settleMutex already serializes concurrent
+    // settles, so no double-apply can occur.
+    const dbError = await this._applyResultToDb(command);
+    if (dbError) return dbError;
+
+    // DO-storage bookkeeping (does NOT gate the write above):
+    //  - manual-pin: an auto command never overwrites a stored manual result
+    //  - first-writer-wins for auto: keep the original settleCount/echo for an
+    //    auto command when an auto result is already recorded (idempotent echo)
+    // Either way the authoritative DB write already happened above.
     if (
       stored !== undefined &&
-      stored.homeScore === command.homeScore &&
-      stored.awayScore === command.awayScore &&
-      stored.resultSource === command.source
+      ((stored.resultSource === "manual" && command.source === "auto") ||
+        (stored.resultSource === "auto" && command.source === "auto"))
     ) {
       const result: SettleResult = {
         settled: true,
@@ -571,45 +593,8 @@ export class MatchDO implements DurableObject {
       return Response.json(result);
     }
 
-    // Manual-pin guard: auto cannot overwrite an existing manual result
-    if (stored !== undefined && stored.resultSource === "manual" && command.source === "auto") {
-      const result: SettleResult = {
-        settled: true,
-        settleCount: stored.settleCount,
-        homeScore: stored.homeScore,
-        awayScore: stored.awayScore,
-        resultSource: stored.resultSource,
-      };
-      return Response.json(result);
-    }
-
-    // Single-flight guard: once ANY auto result is stored, subsequent auto calls
-    // with different scores are no-ops (first-writer-wins for auto).
-    // This prevents double-apply under concurrent settlement attempts.
-    // Only a manual override can replace an existing auto result.
-    if (stored !== undefined && stored.resultSource === "auto" && command.source === "auto") {
-      const result: SettleResult = {
-        settled: true,
-        settleCount: stored.settleCount,
-        homeScore: stored.homeScore,
-        awayScore: stored.awayScore,
-        resultSource: stored.resultSource,
-      };
-      return Response.json(result);
-    }
-
-    // Guards passed — call applyMatchResult against the configured DB.
-    // When TURSO_DATABASE_URL is empty (e.g. in the workers unit-test pool where
-    // DB-settlement is covered by a separate in-memory integration test), the DB
-    // step is skipped and only DO storage is updated.  Production always has a
-    // non-empty URL, so the skip path is never reachable in prod.
-    // The DO's guards (above) serialize access and prevent double-writes;
-    // applyMatchResult has its own idempotency + manual-pin guards as defense-in-depth.
-    const dbError = await this._applyResultToDb(command);
-    if (dbError) return dbError;
-
-    // Persist the settled result in DO storage so the idempotency + manual-pin
-    // guards work correctly on subsequent calls (without another DB round-trip).
+    // New settlement (first auto, or a manual override) — record in DO storage so
+    // the alarm's settleCount check and the in_progress echo stay correct.
     const settleCount = (stored?.settleCount ?? 0) + 1;
     const newResult = {
       homeScore: command.homeScore,
