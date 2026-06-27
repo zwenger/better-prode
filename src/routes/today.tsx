@@ -10,7 +10,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/start-server-core";
-import { useState, useCallback, useMemo, memo } from "react";
+import { useState, useCallback, memo } from "react";
 import { asc, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { getDb } from "#/infra/db/client";
@@ -29,11 +29,6 @@ import { AppShell } from "#/components/app-shell";
 import { TeamButton } from "#/components/team-button";
 import { TeamSheet } from "#/components/team-sheet";
 import { PredictableMatchCard } from "#/components/predictable-match-card";
-import { StickyBatchBar } from "#/components/sticky-batch-bar";
-import { isDirty } from "#/app/is-dirty";
-import type { Goals } from "#/app/is-dirty";
-import { aggregateBatchResults } from "#/app/aggregate-batch-results";
-import { submitBatchPredictions } from "#/routes/api/predictions/-submit";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -520,108 +515,9 @@ function TodayPage() {
     name: string;
   }>({ open: false, code: null, name: "" });
 
-  // ---------------------------------------------------------------------------
-  // Draft state — page-owned Map<matchId, Goals>
-  // ---------------------------------------------------------------------------
-  const predictableMatches = useMemo(
-    () => matches.filter((m) => m.status === "scheduled" && !m.locked),
-    [matches]
-  );
-
-  const [drafts, setDrafts] = useState<Map<string, Goals>>(() => {
-    const m = new Map<string, Goals>();
-    for (const match of matches) {
-      if (match.status === "scheduled" && !match.locked) {
-        m.set(match.id, {
-          homeGoals: match.userPrediction?.homeGoals ?? 0,
-          awayGoals: match.userPrediction?.awayGoals ?? 0,
-        });
-      }
-    }
-    return m;
-  });
-
-  const [savedBaseline, setSavedBaseline] = useState<Map<string, Goals>>(() => {
-    const m = new Map<string, Goals>();
-    for (const match of matches) {
-      if (match.userPrediction && match.status === "scheduled" && !match.locked) {
-        m.set(match.id, {
-          homeGoals: match.userPrediction.homeGoals,
-          awayGoals: match.userPrediction.awayGoals,
-        });
-      }
-    }
-    return m;
-  });
-
-  const [batchSaving, setBatchSaving] = useState(false);
-  const [batchResult, setBatchResult] = useState<string | null>(null);
-
   const handleTeamPress = useCallback((code: string | null, name: string) => {
     setTeamSheet({ open: true, code, name });
   }, []);
-
-  const makeHandleChange = useCallback(
-    (matchId: string) => (next: Goals) => {
-      setDrafts((prev) => {
-        const next_ = new Map(prev);
-        next_.set(matchId, next);
-        return next_;
-      });
-      setBatchResult(null);
-    },
-    []
-  );
-
-  const dirtyCount = useMemo(() => {
-    let count = 0;
-    for (const m of predictableMatches) {
-      const draft = drafts.get(m.id) ?? { homeGoals: 0, awayGoals: 0 };
-      const saved = savedBaseline.get(m.id) ?? null;
-      if (isDirty(draft, saved)) count++;
-    }
-    return count;
-  }, [predictableMatches, drafts, savedBaseline]);
-
-  const handleSaveAll = useCallback(async () => {
-    const dirty = predictableMatches
-      .filter((m) => {
-        const draft = drafts.get(m.id) ?? { homeGoals: 0, awayGoals: 0 };
-        const saved = savedBaseline.get(m.id) ?? null;
-        return isDirty(draft, saved);
-      })
-      .map((m) => {
-        const draft = drafts.get(m.id) ?? { homeGoals: 0, awayGoals: 0 };
-        return { matchId: m.id, homeGoals: draft.homeGoals, awayGoals: draft.awayGoals };
-      });
-
-    if (dirty.length === 0) return;
-
-    setBatchSaving(true);
-    setBatchResult(null);
-
-    try {
-      const { results } = await submitBatchPredictions({ data: { predictions: dirty } });
-      const summary = aggregateBatchResults(results);
-
-      setSavedBaseline((prev) => {
-        const next = new Map(prev);
-        for (const [matchId, res] of Object.entries(results)) {
-          if (res.status === "saved") {
-            const draft = drafts.get(matchId);
-            if (draft) next.set(matchId, { ...draft });
-          }
-        }
-        return next;
-      });
-
-      setBatchResult(`${summary.saved} de ${summary.total} guardadas`);
-    } catch {
-      setBatchResult("Error al guardar. Intentá de nuevo.");
-    } finally {
-      setBatchSaving(false);
-    }
-  }, [predictableMatches, drafts, savedBaseline]);
 
   // Partition matches
   const upcoming = matches.filter(
@@ -652,14 +548,10 @@ function TodayPage() {
   const recentFinished = finished.slice(0, 5);
 
   const noMatches = matches.length === 0;
-  const hasBar = dirtyCount > 0 || batchResult !== null;
 
   return (
     <AppShell>
-      <div
-        className="max-w-md mx-auto"
-        style={hasBar ? { paddingBottom: "calc(4rem + env(safe-area-inset-bottom))" } : undefined}
-      >
+      <div className="max-w-md mx-auto">
         {/* Page header */}
         <header
           className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4"
@@ -721,9 +613,6 @@ function TodayPage() {
                     <MemoizedPredictableMatchCard
                       key={m.id}
                       match={m}
-                      value={drafts.get(m.id) ?? { homeGoals: m.userPrediction?.homeGoals ?? 0, awayGoals: m.userPrediction?.awayGoals ?? 0 }}
-                      onChange={makeHandleChange(m.id)}
-                      savedValue={savedBaseline.get(m.id) ?? null}
                       onTeamPress={handleTeamPress}
                     />
                   );
@@ -750,14 +639,6 @@ function TodayPage() {
           </section>
         )}
       </div>
-
-      {/* Sticky batch save bar — floats above the tab bar */}
-      <StickyBatchBar
-        dirtyCount={dirtyCount}
-        saving={batchSaving}
-        result={batchResult}
-        onSaveAll={() => { void handleSaveAll(); }}
-      />
 
       <TeamSheet
         open={teamSheet.open}
