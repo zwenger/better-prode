@@ -10,8 +10,9 @@
  *   open-prediction-drawer (from PredictionDrawer)
  */
 
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { asc, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
@@ -50,6 +51,12 @@ interface LoaderData {
 }
 
 type FilterTab = "all" | "predict" | "live" | "results";
+
+// Active filter lives in the URL (?tab=) so it survives reload, share, and
+// back/forward. `.catch("all")` makes any invalid value fall back gracefully.
+const matchesSearchSchema = z.object({
+  tab: z.enum(["all", "predict", "live", "results"]).catch("all"),
+});
 
 // ---------------------------------------------------------------------------
 // Server function
@@ -125,6 +132,7 @@ const getMatches = createServerFn({ method: "GET" }).handler(
 // ---------------------------------------------------------------------------
 
 export const Route = createFileRoute("/matches/")({
+  validateSearch: matchesSearchSchema,
   loader: async () => getMatches(),
   component: MatchListPage,
 });
@@ -213,7 +221,7 @@ function ScoreBreakdown({ match }: { match: MatchListItem }) {
 
   const containerStyle: React.CSSProperties = isPleno
     ? {
-        backgroundColor: "oklch(0.98 0.04 84)",
+        backgroundColor: "var(--glory-gold-tint)",
         boxShadow: "0 0 0 2px var(--glory-gold)",
         borderRadius: "0.75rem",
         padding: "0.75rem",
@@ -281,7 +289,7 @@ function ScoreBreakdown({ match }: { match: MatchListItem }) {
             aria-label={`Home goals: ${pick.homeGoals} ${homeExact ? "correct" : "wrong"}`}
           >
             {pick.homeGoals}
-            <sup className="text-[0.55rem] ml-0.5">{homeExact ? "✓" : "✗"}</sup>
+            <sup className="text-[0.65rem] ml-0.5">{homeExact ? "✓" : "✗"}</sup>
           </span>
           <span
             className={cellBase}
@@ -289,7 +297,7 @@ function ScoreBreakdown({ match }: { match: MatchListItem }) {
             aria-label={`Result: ${outcomeLabel} ${outcomeCorrect ? "correct" : "wrong"}`}
           >
             {outcomeLabel}
-            <sup className="text-[0.55rem] ml-0.5">{outcomeCorrect ? "✓" : "✗"}</sup>
+            <sup className="text-[0.65rem] ml-0.5">{outcomeCorrect ? "✓" : "✗"}</sup>
           </span>
           <span
             className={cellBase}
@@ -297,7 +305,7 @@ function ScoreBreakdown({ match }: { match: MatchListItem }) {
             aria-label={`Away goals: ${pick.awayGoals} ${awayExact ? "correct" : "wrong"}`}
           >
             {pick.awayGoals}
-            <sup className="text-[0.55rem] ml-0.5">{awayExact ? "✓" : "✗"}</sup>
+            <sup className="text-[0.65rem] ml-0.5">{awayExact ? "✓" : "✗"}</sup>
           </span>
         </div>
 
@@ -597,7 +605,14 @@ const MemoizedPredictableMatchCard = memo(PredictableMatchCard);
 
 function MatchListPage() {
   const { matches, userId, groupIds } = Route.useLoaderData();
-  const [tab, setTab] = useState<FilterTab>("all");
+  const { tab } = Route.useSearch();
+  const navigate = useNavigate({ from: "/matches/" });
+  const setTab = useCallback(
+    (next: FilterTab) => {
+      void navigate({ search: { tab: next } });
+    },
+    [navigate]
+  );
   const [teamSheet, setTeamSheet] = useState<{
     open: boolean;
     code: string | null;
