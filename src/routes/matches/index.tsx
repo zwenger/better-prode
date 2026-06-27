@@ -174,7 +174,7 @@ function ResultOnlyRow({ match }: { match: MatchListItem }) {
       <div className="flex items-center gap-1 shrink-0">
         <TeamFlag code={match.homeCode} />
         <span className="text-xs font-medium text-muted-foreground">
-          {match.homeCode?.toUpperCase() ?? "---"}
+          {match.homeName}
         </span>
       </div>
       <span className="text-xs text-muted-foreground italic flex-1">
@@ -188,7 +188,7 @@ function ResultOnlyRow({ match }: { match: MatchListItem }) {
       </span>
       <div className="flex items-center gap-1 shrink-0">
         <span className="text-xs font-medium text-muted-foreground">
-          {match.awayCode?.toUpperCase() ?? "---"}
+          {match.awayName}
         </span>
         <TeamFlag code={match.awayCode} />
       </div>
@@ -285,8 +285,8 @@ function ScoreBreakdown({ match }: { match: MatchListItem }) {
 
   const badgeLabel = isPleno ? "PLENO ✦ +7" : `+${pts}`;
 
-  const homeDisplayCode = match.homeCode?.toUpperCase() ?? "---";
-  const awayDisplayCode = match.awayCode?.toUpperCase() ?? "---";
+  const homeDisplayName = match.homeName;
+  const awayDisplayName = match.awayName;
 
   return (
     <div style={containerStyle}>
@@ -294,7 +294,7 @@ function ScoreBreakdown({ match }: { match: MatchListItem }) {
         <div className="flex items-center gap-1 shrink-0">
           <TeamFlag code={match.homeCode} />
           <span className="text-xs font-medium" style={{ color: "var(--ink-muted)" }}>
-            {homeDisplayCode}
+            {homeDisplayName}
           </span>
         </div>
 
@@ -327,7 +327,7 @@ function ScoreBreakdown({ match }: { match: MatchListItem }) {
 
         <div className="flex items-center gap-1 shrink-0">
           <span className="text-xs font-medium" style={{ color: "var(--ink-muted)" }}>
-            {awayDisplayCode}
+            {awayDisplayName}
           </span>
           <TeamFlag code={match.awayCode} />
         </div>

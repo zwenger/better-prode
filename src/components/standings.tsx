@@ -173,14 +173,14 @@ function MemberPredictionRow({ entry }: { entry: MemberPredictionEntry }) {
     const awayExact = entry.predAwayGoals === entry.awayScore;
     const outcomeLabel =
       pickOutcome === "home" ? "L" : pickOutcome === "draw" ? "E" : "V";
-    const homeCode = entry.homeCode?.toUpperCase() ?? "---";
-    const awayCode = entry.awayCode?.toUpperCase() ?? "---";
+    const homeName = entry.homeName;
+    const awayName = entry.awayName;
 
     return (
       <div style={containerStyle}>
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-xs font-medium shrink-0" style={{ color: "var(--ink-muted)" }}>
-            {homeCode}
+            {homeName}
           </span>
           <div className="flex items-center gap-1 shrink-0">
             <span
@@ -206,7 +206,7 @@ function MemberPredictionRow({ entry }: { entry: MemberPredictionEntry }) {
             </span>
           </div>
           <span className="text-xs font-medium shrink-0" style={{ color: "var(--ink-muted)" }}>
-            {awayCode}
+            {awayName}
           </span>
           <span className="text-[11px] tabular-nums shrink-0" style={{ color: "var(--ink-muted)" }}>
             Res <span className="font-semibold" style={{ color: "var(--ink)" }}>{entry.homeScore}–{entry.awayScore}</span>
@@ -223,17 +223,17 @@ function MemberPredictionRow({ entry }: { entry: MemberPredictionEntry }) {
   }
 
   // in_progress: show pick + live score
-  const homeCode = entry.homeCode?.toUpperCase() ?? "---";
-  const awayCode = entry.awayCode?.toUpperCase() ?? "---";
+  const homeName = entry.homeName;
+  const awayName = entry.awayName;
 
   return (
     <div style={{ ...containerStyle, backgroundColor: "var(--surface-subtle)" }}>
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-xs font-medium shrink-0" style={{ color: "var(--ink-muted)" }}>{homeCode}</span>
+        <span className="text-xs font-medium shrink-0" style={{ color: "var(--ink-muted)" }}>{homeName}</span>
         <span className="font-semibold tabular-nums shrink-0">
           {entry.predHomeGoals}–{entry.predAwayGoals}
         </span>
-        <span className="text-xs shrink-0" style={{ color: "var(--ink-muted)" }}>{awayCode}</span>
+        <span className="text-xs shrink-0" style={{ color: "var(--ink-muted)" }}>{awayName}</span>
         {entry.homeScore !== null && entry.awayScore !== null && (
           <span className="text-[11px] tabular-nums shrink-0" style={{ color: "var(--live-red)" }}>
             {entry.homeScore}–{entry.awayScore} (en vivo)

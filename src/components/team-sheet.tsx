@@ -255,7 +255,7 @@ export function TeamSheet({
                     <div className="flex items-center gap-2">
                       <TeamFlag code={m.homeCode} />
                       <span className="text-sm font-medium">
-                        {m.homeCode?.toUpperCase() ?? "---"}
+                        {m.homeName}
                       </span>
                       <span
                         className="text-xs"
@@ -265,7 +265,7 @@ export function TeamSheet({
                       </span>
                       <TeamFlag code={m.awayCode} />
                       <span className="text-sm font-medium">
-                        {m.awayCode?.toUpperCase() ?? "---"}
+                        {m.awayName}
                       </span>
                     </div>
                     <span
