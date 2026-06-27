@@ -275,18 +275,11 @@ export class FifaAdapter implements TournamentSource, ResultSource {
     }
 
     const m = raw.Results.find((r) => r.IdMatch === rawId);
-    if (!m) {
-      // [DIAG] temporary — remove after settlement debugging
-      console.log(`[diag getResult] matchId=${matchId} rawId=${rawId} found=false totalResults=${raw.Results.length}`);
-      return null;
-    }
+    if (!m) return null;
 
     const { status } = mapStatus(m.MatchStatus ?? -1);
     const homeScore = parseScore(m.Home?.Score);
     const awayScore = parseScore(m.Away?.Score);
-
-    // [DIAG] temporary — remove after settlement debugging
-    console.log(`[diag getResult] matchId=${matchId} fifaStatus=${String(m.MatchStatus)} mapped=${status} score=${String(homeScore)}-${String(awayScore)}`);
 
     return {
       matchId,
