@@ -195,8 +195,8 @@ export function TeamSheet({
                 <div className="flex flex-wrap gap-2 mb-4 mt-2">
                   {formStrip.map((m) => {
                     const result = teamResult(m, teamCode);
-                    const oppCode = opponentCode(m, teamCode);
-                    const label = `${result} ${oppCode ?? "---"}`;
+                    const oppName = opponentName(m, teamCode);
+                    const label = `${result} ${oppName}`;
                     const pillStyle: React.CSSProperties =
                       result === "W"
                         ? {
@@ -216,7 +216,7 @@ export function TeamSheet({
                       <span
                         key={m.id}
                         role="img"
-                        aria-label={`${result === "W" ? "Win" : result === "L" ? "Loss" : "Draw"} vs ${oppCode ?? "---"}`}
+                        aria-label={`${result === "W" ? "Win" : result === "L" ? "Loss" : "Draw"} vs ${oppName}`}
                         style={{
                           ...pillStyle,
                           borderRadius: "9999px",
