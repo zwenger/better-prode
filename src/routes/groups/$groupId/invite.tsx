@@ -184,7 +184,7 @@ function InvitePage() {
       )}
 
       {error && (
-        <p className="mt-3 text-sm text-red-500" data-testid="invite-error">
+        <p className="mt-3 text-sm text-miss-red-ink" data-testid="invite-error">
           {error}
         </p>
       )}

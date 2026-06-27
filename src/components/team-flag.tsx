@@ -49,7 +49,7 @@ export function TeamFlag({ code }: TeamFlagProps) {
       <span
         data-testid="flag-placeholder"
         aria-label="Unknown flag"
-        className="fi-placeholder inline-block h-4 w-6 rounded bg-gray-200"
+        className="fi-placeholder inline-block h-4 w-6 rounded bg-surface-subtle"
       />
     );
   }

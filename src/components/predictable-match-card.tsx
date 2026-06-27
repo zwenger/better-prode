@@ -314,7 +314,7 @@ export function PredictableMatchCard({
       )}
 
       {submitState === "error" && (
-        <p className="mt-1 text-xs text-destructive text-center">
+        <p className="mt-1 text-xs text-miss-red-ink text-center">
           Error al guardar. Intentá de nuevo.
         </p>
       )}

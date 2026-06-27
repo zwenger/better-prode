@@ -384,7 +384,7 @@ function ScoreBreakdown({ match }: { match: MatchListItem }) {
   // Pleno: subtle gold tint bg + 2px gold ring — cells still visible inside
   const containerStyle: React.CSSProperties = isPleno
     ? {
-        backgroundColor: "oklch(0.98 0.04 84)",  // lightest gold tint from ramp
+        backgroundColor: "var(--glory-gold-tint)",  // lightest gold tint from ramp
         boxShadow: "0 0 0 2px var(--glory-gold)",
         borderRadius: "0.75rem",
         padding: "0.75rem",
@@ -457,21 +457,21 @@ function ScoreBreakdown({ match }: { match: MatchListItem }) {
             style={homeExact ? correctCellStyle : wrongCellStyle}
             aria-label={`Home goals: ${pick.homeGoals} ${homeExact ? "correct" : "wrong"}`}
           >
-            {pick.homeGoals}<sup className="text-[0.55rem] ml-0.5">{homeExact ? "✓" : "✗"}</sup>
+            {pick.homeGoals}<sup className="text-[0.65rem] ml-0.5">{homeExact ? "✓" : "✗"}</sup>
           </span>
           <span
             className={cellBase}
             style={outcomeCorrect ? correctCellStyle : wrongCellStyle}
             aria-label={`Result: ${outcomeLabel} ${outcomeCorrect ? "correct" : "wrong"}`}
           >
-            {outcomeLabel}<sup className="text-[0.55rem] ml-0.5">{outcomeCorrect ? "✓" : "✗"}</sup>
+            {outcomeLabel}<sup className="text-[0.65rem] ml-0.5">{outcomeCorrect ? "✓" : "✗"}</sup>
           </span>
           <span
             className={cellBase}
             style={awayExact ? correctCellStyle : wrongCellStyle}
             aria-label={`Away goals: ${pick.awayGoals} ${awayExact ? "correct" : "wrong"}`}
           >
-            {pick.awayGoals}<sup className="text-[0.55rem] ml-0.5">{awayExact ? "✓" : "✗"}</sup>
+            {pick.awayGoals}<sup className="text-[0.65rem] ml-0.5">{awayExact ? "✓" : "✗"}</sup>
           </span>
         </div>
 

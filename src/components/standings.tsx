@@ -117,7 +117,7 @@ function MemberPredictionRow({ entry }: { entry: MemberPredictionEntry }) {
 
   const containerStyle: React.CSSProperties = isPleno
     ? {
-        backgroundColor: "oklch(0.98 0.04 84)",
+        backgroundColor: "var(--glory-gold-tint)",
         boxShadow: "0 0 0 2px var(--glory-gold)",
         borderRadius: "0.75rem",
         padding: "0.75rem",
@@ -188,21 +188,21 @@ function MemberPredictionRow({ entry }: { entry: MemberPredictionEntry }) {
               style={homeExact ? correctCellStyle : wrongCellStyle}
               aria-label={`Home goals: ${entry.predHomeGoals} ${homeExact ? "correct" : "wrong"}`}
             >
-              {entry.predHomeGoals}<sup className="text-[0.55rem] ml-0.5">{homeExact ? "✓" : "✗"}</sup>
+              {entry.predHomeGoals}<sup className="text-[0.65rem] ml-0.5">{homeExact ? "✓" : "✗"}</sup>
             </span>
             <span
               className={cellBase}
               style={outcomeCorrect ? correctCellStyle : wrongCellStyle}
               aria-label={`Result: ${outcomeLabel} ${outcomeCorrect ? "correct" : "wrong"}`}
             >
-              {outcomeLabel}<sup className="text-[0.55rem] ml-0.5">{outcomeCorrect ? "✓" : "✗"}</sup>
+              {outcomeLabel}<sup className="text-[0.65rem] ml-0.5">{outcomeCorrect ? "✓" : "✗"}</sup>
             </span>
             <span
               className={cellBase}
               style={awayExact ? correctCellStyle : wrongCellStyle}
               aria-label={`Away goals: ${entry.predAwayGoals} ${awayExact ? "correct" : "wrong"}`}
             >
-              {entry.predAwayGoals}<sup className="text-[0.55rem] ml-0.5">{awayExact ? "✓" : "✗"}</sup>
+              {entry.predAwayGoals}<sup className="text-[0.65rem] ml-0.5">{awayExact ? "✓" : "✗"}</sup>
             </span>
           </div>
           <span className="text-xs font-medium shrink-0" style={{ color: "var(--ink-muted)" }}>
@@ -333,7 +333,7 @@ export function Standings({
 
   const podiumStyle = (rank: number): React.CSSProperties =>
     rank <= 3
-      ? { backgroundColor: "oklch(0.98 0.04 84)" }
+      ? { backgroundColor: "var(--glory-gold-tint)" }
       : {};
 
   return (

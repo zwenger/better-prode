@@ -108,7 +108,7 @@ function NewGroupPage() {
         </div>
 
         {errorMsg && (
-          <p className="text-sm text-red-500" data-testid="create-group-error">
+          <p className="text-sm text-miss-red-ink" data-testid="create-group-error">
             {errorMsg}
           </p>
         )}

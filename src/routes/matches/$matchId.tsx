@@ -518,7 +518,7 @@ function MatchDetailPage() {
                     </span>
                     <span className="text-sm font-medium truncate">{e.name}</span>
                     {e.isMe && (
-                      <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                      <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
                         Vos
                       </span>
                     )}

@@ -39,6 +39,7 @@
   --pitch-green-tint: oklch(0.95 0.04 150);
   --glory-gold: oklch(0.82 0.13 84);
   --glory-gold-ink: oklch(0.34 0.06 70);
+  --glory-gold-tint: oklch(0.98 0.04 84);
   --ink: oklch(0.22 0.015 152);
   --ink-muted: oklch(0.46 0.012 152);
   --surface: oklch(1 0 0);
@@ -78,6 +79,7 @@
   --pitch-green-tint: oklch(0.22 0.06 150);
   --glory-gold: oklch(0.86 0.12 84);
   --glory-gold-ink: oklch(0.34 0.06 70);
+  --glory-gold-tint: oklch(0.28 0.06 84);
   --ink: oklch(0.96 0.008 150);
   --ink-muted: oklch(0.72 0.010 152);
   --surface: oklch(0.18 0.010 150);
@@ -115,6 +117,7 @@
   --color-pitch-green-tint: var(--pitch-green-tint);
   --color-glory-gold: var(--glory-gold);
   --color-glory-gold-ink: var(--glory-gold-ink);
+  --color-glory-gold-tint: var(--glory-gold-tint);
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
   --color-surface: var(--surface);

@@ -167,7 +167,7 @@ function RoleBadge({ role }: { role: GroupRole }) {
   const colors: Record<GroupRole, string> = {
     owner: "bg-yellow-100 text-yellow-800",
     admin: "bg-blue-100 text-blue-800",
-    member: "bg-gray-100 text-gray-700",
+    member: "bg-surface-subtle text-ink-muted",
   };
   return (
     <span className={`px-2 py-0.5 rounded text-xs font-medium ${colors[role]}`}>
@@ -223,7 +223,7 @@ function MembersPage() {
       </p>
 
       {error && (
-        <p className="mb-4 text-sm text-red-500" data-testid="members-error">
+        <p className="mb-4 text-sm text-miss-red-ink" data-testid="members-error">
           {error}
         </p>
       )}
@@ -272,7 +272,7 @@ function MembersPage() {
                       isSelf
                         ? "hover:bg-accent text-muted-foreground"
                         : canManage
-                          ? "hover:bg-red-50 text-red-600 border-red-200"
+                          ? "hover:bg-miss-red-tint text-miss-red-ink border-border-hairline"
                           : "hidden"
                     }`}
                     data-testid={isSelf ? "leave-group-btn" : "remove-member-btn"}

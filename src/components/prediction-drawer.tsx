@@ -213,7 +213,7 @@ export function PredictionDrawer({
             )}
 
             {error && (
-              <p className="text-sm text-red-500" data-testid="drawer-error">
+              <p className="text-sm text-miss-red-ink" data-testid="drawer-error">
                 {error}
               </p>
             )}
@@ -242,7 +242,7 @@ export function PredictionDrawer({
                   </span>
                   <span className="text-sm font-medium truncate">{entry.name}</span>
                   {entry.isMe && (
-                    <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                    <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
                       Vos
                     </span>
                   )}
