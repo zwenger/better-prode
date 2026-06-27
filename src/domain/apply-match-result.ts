@@ -178,9 +178,12 @@ export async function applyMatchResult(
       }
     }
   } else {
-    // in_progress (or scheduled): update status only — drives the bet-lock.
+    // in_progress (or scheduled): update status + live score — drives the
+    // bet-lock AND lets the "En vivo" pill show the running score.
     // No settledAt, no points — the match is not yet final.
     await matchRepository.updateResult(command.matchId, {
+      homeScore: command.homeScore,
+      awayScore: command.awayScore,
       status: command.status,
     });
   }

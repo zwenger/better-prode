@@ -389,6 +389,29 @@ describe("applyMatchResult — cache invalidation (W-1)", () => {
     expect(cache.invalidateCalls).toHaveLength(0);
   });
 
+  it("in_progress updates the live score + status, but NOT settledAt or points", async () => {
+    // Live pill ("En vivo") must show the running score, so an in_progress
+    // update writes homeScore/awayScore. It must NOT settle (no settledAt) and
+    // must NOT compute points (the match is not final yet).
+    const match = makeMatch({ status: "scheduled", homeScore: null, awayScore: null });
+    const predictions = [makePrediction({ homeGoals: 1, awayGoals: 0 })];
+    const ports = makePorts(match, predictions);
+
+    await applyMatchResult(
+      { matchId: "match-1", homeScore: 2, awayScore: 1, status: "in_progress", source: "auto" },
+      ports,
+      clock
+    );
+
+    expect(ports.savedMatch).not.toBeNull();
+    expect(ports.savedMatch!.status).toBe("in_progress");
+    expect(ports.savedMatch!.homeScore).toBe(2);
+    expect(ports.savedMatch!.awayScore).toBe(1);
+    expect(ports.savedMatch!.settledAt).toBeNull();
+    // No points written while the match is still live.
+    expect(ports.savedPredictions).toHaveLength(0);
+  });
+
   it("works with no cache options provided (backward compatible — no error)", async () => {
     const match = makeMatch({ status: "finished" });
     const ports = makePorts(match, []);

@@ -302,8 +302,22 @@ export class FifaAdapter implements TournamentSource, ResultSource {
     );
 
     try {
-      const response = await this._fetch(url, {
+      // Call through a local reference, NOT `this._fetch(url)`. The latter
+      // invokes fetch as a method with `this` bound to the adapter instance,
+      // which the Cloudflare Workers runtime rejects with "Illegal invocation"
+      // (Node/undici ignores `this`, so it only fails on the edge). A standalone
+      // call leaves `this` undefined, which global fetch accepts everywhere.
+      const fetchFn = this._fetch;
+      const response = await fetchFn(url, {
         signal: controller.signal,
+        // api.fifa.com rejects requests without a browser-like User-Agent (the
+        // Cloudflare Workers default UA returns non-OK). Send a realistic UA +
+        // Accept so the public API responds identically from the edge runtime.
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          Accept: "application/json",
+        },
       });
 
       if (!response.ok) {

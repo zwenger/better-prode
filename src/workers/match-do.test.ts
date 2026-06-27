@@ -183,6 +183,68 @@ describe("MatchDO — single-flight settlement", () => {
     expect(maxCount).toBe(1);
   });
 
+  // Regression (autonomous refresh): the cron polls every 5 min, so it catches
+  // matches mid-game and sends an in_progress settle BEFORE the finished one.
+  // An in_progress update is transient — it must NOT acquire the single-flight
+  // lock, otherwise the eventual finished result is rejected as a duplicate auto
+  // write and the match never settles. (Latent until getResult started working.)
+  it("in_progress does NOT lock — a later finished result still settles", async () => {
+    const matchId = `match-inprog-then-finished-${Date.now()}`;
+    const id = testEnv.MATCH_DO.idFromName(matchId);
+    const stub = testEnv.MATCH_DO.get(id);
+
+    // Live update arrives first (1-0, in_progress)
+    const rLive = await stub.fetch("http://do/settle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId, homeScore: 1, awayScore: 0, status: "in_progress", source: "auto" }),
+    });
+    expect(rLive.status).toBe(200);
+    const bLive = await rLive.json<{ settled: boolean; settleCount: number }>();
+    // in_progress must NOT count as a settlement
+    expect(bLive.settled).toBe(false);
+    expect(bLive.settleCount).toBe(0);
+
+    // Final result arrives later (3-1, finished) — MUST settle
+    const rFinal = await stub.fetch("http://do/settle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId, homeScore: 3, awayScore: 1, status: "finished", source: "auto" }),
+    });
+    expect(rFinal.status).toBe(200);
+    const bFinal = await rFinal.json<{ settled: boolean; settleCount: number; homeScore: number; awayScore: number }>();
+    expect(bFinal.settled).toBe(true);
+    expect(bFinal.settleCount).toBe(1);
+    expect(bFinal.homeScore).toBe(3);
+    expect(bFinal.awayScore).toBe(1);
+  });
+
+  it("a stale in_progress after settlement is ignored (no downgrade)", async () => {
+    const matchId = `match-finished-then-inprog-${Date.now()}`;
+    const id = testEnv.MATCH_DO.idFromName(matchId);
+    const stub = testEnv.MATCH_DO.get(id);
+
+    // Settle finished 2-0
+    await stub.fetch("http://do/settle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId, homeScore: 2, awayScore: 0, status: "finished", source: "auto" }),
+    });
+
+    // A late/stale in_progress arrives — must be ignored, keep the finished result
+    const rStale = await stub.fetch("http://do/settle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId, homeScore: 1, awayScore: 0, status: "in_progress", source: "auto" }),
+    });
+    expect(rStale.status).toBe(200);
+    const bStale = await rStale.json<{ settled: boolean; settleCount: number; homeScore: number; awayScore: number }>();
+    expect(bStale.settled).toBe(true);
+    expect(bStale.settleCount).toBe(1);
+    expect(bStale.homeScore).toBe(2);
+    expect(bStale.awayScore).toBe(0);
+  });
+
   it("manual pin blocks auto from overwriting", async () => {
     const matchId = "match-pin-test";
     const id = testEnv.MATCH_DO.idFromName(matchId);

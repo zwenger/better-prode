@@ -247,6 +247,30 @@ describe("FifaAdapter — ResultSource.getResult", () => {
     const result = await adapter.getResult("fifa-m-400021443");
     expect(result).toBeNull();
   });
+
+  // Regression: the Cloudflare Workers runtime throws "Illegal invocation" when
+  // the global fetch is called with a `this` other than globalThis. The adapter
+  // stored fetch on a field and called it as `this._fetch(url)`, binding `this`
+  // to the adapter instance — which works in Node (undici ignores `this`) but
+  // fails on the edge, silently returning null and settling no matches.
+  // Contract: the stored fetch must NEVER be invoked with the adapter as `this`.
+  it("does not invoke fetch with the adapter as `this` (Workers Illegal invocation)", async () => {
+    let capturedThis: unknown = "unset";
+    const recordingFetch = function (this: unknown) {
+      capturedThis = this;
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ Results: [finishedFixture] }),
+      });
+    };
+    const adapter = new FifaAdapter({
+      fetch: recordingFetch as unknown as typeof fetch,
+    });
+
+    await adapter.getResult("fifa-m-400021443");
+
+    expect(capturedThis).not.toBe(adapter);
+  });
 });
 
 // ---------------------------------------------------------------------------
