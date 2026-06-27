@@ -94,6 +94,34 @@ test.describe("Groups — create, invite, join, shared leaderboard", () => {
     expect(urlText).toContain("/invite/");
   });
 
+  test("owner sees and can copy the invite link directly on the groups page", async () => {
+    await seedUserAndInjectSession(pageA, contextA, TEST_USER);
+
+    // Open the groups list with the seeded group selected.
+    await pageA.goto("/groups?group=group-e2e-test");
+    await expect(pageA.locator("[data-testid='groups-list-page']")).toBeVisible({
+      timeout: 10000,
+    });
+
+    const url = pageA.locator("[data-testid='groups-invite-url']");
+    const generateBtn = pageA.locator("[data-testid='groups-generate-invite-btn']");
+
+    // The loader pre-fetches an active link; if none exists yet, generate it inline.
+    const alreadyVisible = await url.isVisible({ timeout: 3000 }).catch(() => false);
+    if (!alreadyVisible) {
+      await expect(generateBtn).toBeVisible({ timeout: 10000 });
+      await generateBtn.click();
+    }
+
+    await expect(url).toBeVisible({ timeout: 15000 });
+    expect((await url.textContent()) ?? "").toContain("/invite/");
+
+    // The copy control is present next to the link.
+    await expect(
+      pageA.locator("[data-testid='groups-copy-invite-btn']")
+    ).toBeVisible({ timeout: 10000 });
+  });
+
   test("second user joins via invite link and sees the group in their list", async () => {
     await seedUserAndInjectSession(pageA, contextA, TEST_USER);
     await seedUserAndInjectSession(pageB, contextB, SECOND_USER);
