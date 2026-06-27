@@ -43,7 +43,7 @@ VALUES (
 
 -- Locked match — kickoff in the past (well past T-5min) so isLocked() returns true
 -- Used by prediction-lock.spec.ts to prove server-authoritative lock enforcement
-INSERT INTO match(id, tournament_id, home_team_id, away_team_id, kickoff_utc, status, created_at)
+INSERT INTO match(id, tournament_id, home_team_id, away_team_id, kickoff_utc, status, home_score, away_score, created_at)
 VALUES (
   'e2e-match-locked',
   'wc-2026',
@@ -51,6 +51,8 @@ VALUES (
   'team-brazil',
   '2020-01-01T12:00:00.000Z',
   'finished',
+  2,
+  1,
   '2026-06-01T00:00:00.000Z'
 );
 

@@ -89,6 +89,10 @@ test.describe("Match Views — match list, predictions, drawer", () => {
     await expect(inc).toBeVisible();
     await inc.click();
     await expect(page.getByTestId("save-prediction")).toBeVisible();
+
+    // Recent-form section renders — ARG & BRA each have a finished, scored
+    // match (e2e-match-locked) in the fixture.
+    await expect(page.getByTestId("match-form-section")).toBeVisible({ timeout: 10000 });
   });
 
   test("match card links to the match detail page", async () => {
