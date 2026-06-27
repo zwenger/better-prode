@@ -457,6 +457,8 @@ export class MatchDO implements DurableObject {
    * results, so passing cacheOptions is harmless for in_progress updates.
    */
   private async _applyResultToDb(command: SettleCommand): Promise<Response | null> {
+    // [DIAG] temporary — remove after settlement debugging
+    console.log(`[diag DO] _applyResultToDb match=${command.matchId} status=${command.status} score=${String(command.homeScore)}-${String(command.awayScore)} source=${command.source} tursoUrlEmpty=${String(this.env.TURSO_DATABASE_URL === "")} tursoUrlLen=${String(this.env.TURSO_DATABASE_URL.length)}`);
     if (this.env.TURSO_DATABASE_URL === "") return null;
 
     try {
@@ -500,9 +502,13 @@ export class MatchDO implements DurableObject {
       );
 
       client.close();
+      // [DIAG] temporary — remove after settlement debugging
+      console.log(`[diag DO] applyMatchResult OK match=${command.matchId} status=${command.status}`);
       return null;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      // [DIAG] temporary — remove after settlement debugging
+      console.log(`[diag DO] applyMatchResult ERROR match=${command.matchId}: ${message}`);
       return Response.json({ error: message }, { status: 500 });
     }
   }

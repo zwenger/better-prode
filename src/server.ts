@@ -140,7 +140,12 @@ export default {
     ctx: ExecutionContext
   ): Promise<void> {
     const tid = env.TOURNAMENT_ID ?? process.env["TOURNAMENT_ID"] ?? "17-285023";
-    ctx.waitUntil(runIngest(env, tid));
+    // [DIAG] temporary — capture ingest outcome to debug stuck settlements
+    ctx.waitUntil(
+      runIngest(env, tid).then((r) => {
+        console.log(`[diag cron] ingest result: ${JSON.stringify(r)}`);
+      })
+    );
   },
 };
 
