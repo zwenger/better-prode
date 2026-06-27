@@ -30,7 +30,7 @@ test.describe("Tracer Bullet — login → predict → settle → leaderboard", 
     page = await context.newPage();
     // User-scoped reset: only clears TEST_USER's predictions so that
     // parallel runs (chromium-desktop + chromium-mobile) don't interfere.
-    await resetDb(page, TEST_USER.id);
+    await resetDb(page, { userId: TEST_USER.id });
   });
 
   test.afterEach(async () => {

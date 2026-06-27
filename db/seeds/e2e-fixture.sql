@@ -149,3 +149,12 @@ VALUES ('group-e2e-test', 'test-user-e2e-seed', 'owner', '2026-06-01T00:00:00.00
 -- Second user is also a member of the group (for shared leaderboard test)
 INSERT INTO group_membership(group_id, user_id, role, joined_at)
 VALUES ('group-e2e-test', 'e2e-user-2', 'member', '2026-06-01T00:00:00.000Z');
+
+-- Seeded predictions from a group member (e2e-user-2) so the group-predictions
+-- views (drawer + match hub) have real data to show. e2e-user-2 is only ever a
+-- member (never creates groups) and is never user-scope-reset, so these survive.
+INSERT INTO prediction(id, user_id, match_id, home_goals, away_goals, points, created_at, updated_at)
+VALUES ('pred-u2-locked', 'e2e-user-2', 'e2e-match-locked', 1, 1, 0, '2026-06-01T00:00:00.000Z', '2026-06-01T00:00:00.000Z');
+
+INSERT INTO prediction(id, user_id, match_id, home_goals, away_goals, points, created_at, updated_at)
+VALUES ('pred-u2-live', 'e2e-user-2', 'e2e-match-live', 0, 2, NULL, '2026-06-01T00:00:00.000Z', '2026-06-01T00:00:00.000Z');

@@ -50,7 +50,7 @@ test.describe("Match Views — match list, predictions, drawer", () => {
     context = await browser.newContext();
     page = await context.newPage();
     // User-scoped reset: only clears this worker's user predictions.
-    await resetDb(page, matchViewsUser.id);
+    await resetDb(page, { userId: matchViewsUser.id });
   });
 
   test.afterEach(async () => {

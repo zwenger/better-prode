@@ -48,30 +48,38 @@ export async function handleResetDb(request: Request): Promise<Response> {
 
   const db = getDb();
 
-  // Parse optional { userId } from body
+  // Parse optional { userId, groupId } from body.
   let userId: string | undefined;
+  let groupId: string | undefined;
   try {
     const raw: unknown = await request.json();
     const body = raw as Record<string, unknown>;
-    if (typeof body["userId"] === "string") {
-      userId = body["userId"];
-    }
+    if (typeof body["userId"] === "string") userId = body["userId"];
+    if (typeof body["groupId"] === "string") groupId = body["groupId"];
   } catch {
     // No body or invalid JSON — perform global reset
   }
 
-  if (userId) {
-    // User-scoped reset: only clear volatile data for this specific user.
-    // Prevents parallel test runs (chromium-desktop + chromium-mobile) from
-    // clearing each other's predictions when using the same match.
-    await db.run(sql`DELETE FROM prediction WHERE user_id = ${userId}`);
-    await db.run(sql`DELETE FROM push_subscription WHERE user_id = ${userId}`);
-    // Invitations are group-scoped, not user-scoped — clear all (rare conflict risk)
-    await db.run(sql`DELETE FROM invitation`);
-    return Response.json({ ok: true, reset: ["prediction(user)", "push_subscription(user)", "invitation"], userId });
+  // Scoped reset: clear ONLY what this scope owns. Critical for parallel safety —
+  // a global `DELETE FROM invitation` here would wipe the invite token another
+  // spec just created (the source of the groups.spec flakiness), and a global
+  // prediction delete would wipe fixture-seeded predictions other tests rely on.
+  if (userId || groupId) {
+    if (userId) {
+      await db.run(sql`DELETE FROM prediction WHERE user_id = ${userId}`);
+      await db.run(sql`DELETE FROM push_subscription WHERE user_id = ${userId}`);
+    }
+    if (groupId) {
+      // Invitations are group-scoped — clear only this group's, not everyone's.
+      await db.run(sql`DELETE FROM invitation WHERE group_id = ${groupId}`);
+    }
+    return Response.json({
+      ok: true,
+      scoped: { userId: userId ?? null, groupId: groupId ?? null },
+    });
   }
 
-  // Global reset: truncate all volatile tables.
+  // Global reset (no scope): truncate all volatile tables.
   // Do NOT clear session/account — sessions accumulating is harmless and
   // clearing them causes race conditions when parallel tests create sessions.
   await db.run(sql`DELETE FROM prediction`);

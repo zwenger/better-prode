@@ -19,7 +19,7 @@
 
 import { test, expect } from "@playwright/test";
 import type { BrowserContext, Page } from "@playwright/test";
-import { seedUserAndInjectSession, resetDb, TEST_USER } from "./helpers/auth-bypass";
+import { seedUserAndInjectSession, TEST_USER } from "./helpers/auth-bypass";
 
 const SECOND_USER = {
   id: "e2e-user-2",
@@ -39,9 +39,10 @@ test.describe("Groups — create, invite, join, shared leaderboard", () => {
     contextB = await browser.newContext();
     pageA = await contextA.newPage();
     pageB = await contextB.newPage();
-    // Global invitation reset (invitations are group-scoped, not user-scoped)
-    // so stale invite tokens from prior runs don't conflict.
-    await resetDb(pageA);
+    // No DB reset here on purpose. Invite tokens are reusable/idempotent
+    // (generateInviteForGroup returns the existing active token), so these tests
+    // never need to delete invitations — and deleting them in beforeEach is what
+    // raced parallel tests/projects on the shared group (the old flakiness).
   });
 
   test.afterEach(async () => {
@@ -141,6 +142,19 @@ test.describe("Groups — create, invite, join, shared leaderboard", () => {
     await expect(tablaLink).toBeVisible({ timeout: 10000 });
     await tablaLink.click();
     await expect(pageA).toHaveURL(/\/leaderboard\/group-e2e-test/, { timeout: 10000 });
+  });
+
+  test("match hub shows group members' predictions once locked", async () => {
+    // View as the seeded member (e2e-user-2) — deterministic: they belong to
+    // exactly one group (group-e2e-test) and have a seeded prediction on the
+    // locked match, so the inline group-predictions section has real data.
+    await seedUserAndInjectSession(pageB, contextB, SECOND_USER);
+    await pageB.goto("/matches/e2e-match-locked");
+
+    const section = pageB.getByTestId("match-group-predictions");
+    await expect(section).toBeVisible({ timeout: 10000 });
+    // The member's own prediction is shown with the "Vos" highlight.
+    await expect(section).toContainText("Vos");
   });
 
   test("live match card shows the group-predictions drawer for a group member", async () => {

@@ -130,23 +130,25 @@ export async function seedUserAndInjectSession(
 }
 
 /**
- * Resets volatile DB tables (prediction, push_subscription, invitation)
- * via the test-only /api/test/reset-db endpoint.
+ * Resets volatile DB tables via the test-only /api/test/reset-db endpoint.
  *
- * When `userId` is provided, only clears volatile data for that user — safe for
- * parallel test runs (chromium-desktop + chromium-mobile running simultaneously).
- * When omitted, performs a global reset (all rows in volatile tables).
- *
- * Call in beforeEach for tests that submit predictions or manipulate
- * subscriptions/invitations so each test starts from a known clean state.
+ * Pass a SCOPE so parallel runs never clobber each other:
+ *   - { userId }  → clears only that user's predictions + push subscriptions.
+ *   - { groupId } → clears only that group's invitations.
+ * Both can be combined. Omitting the scope performs a global reset — avoid it in
+ * parallel specs (it wipes other tests' invitations and seeded predictions).
  *
  * Requires TEST_AUTH_BYPASS=true in the server environment (E2E builds only).
  */
-export async function resetDb(page: PlaywrightPage, userId?: string): Promise<void> {
+export async function resetDb(
+  page: PlaywrightPage,
+  scope?: { userId?: string; groupId?: string }
+): Promise<void> {
   const baseURL =
     process.env["PLAYWRIGHT_BASE_URL"] ?? "http://localhost:4173";
 
-  const body = userId ? { userId } : undefined;
+  const body =
+    scope && (scope.userId || scope.groupId) ? scope : undefined;
   const response = await page.request.post(`${baseURL}/api/test/reset-db`, {
     data: body,
   });
