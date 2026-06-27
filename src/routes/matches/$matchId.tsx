@@ -406,15 +406,40 @@ function PredictionEditor({
       <button
         type="button"
         onClick={handleSave}
-        disabled={state === "saving"}
-        className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
+        disabled={state === "saving" || state === "saved"}
+        aria-live="polite"
+        className={[
+          "w-full py-3 rounded-xl text-sm font-semibold select-none",
+          "transition-[background-color,transform,box-shadow] duration-200 ease-out",
+          "active:scale-[0.98] disabled:active:scale-100",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
+          state === "saved"
+            ? "bg-pitch-green text-surface shadow-lifted"
+            : "bg-primary text-primary-foreground hover:bg-pitch-green-deep disabled:opacity-50",
+        ].join(" ")}
         data-testid="save-prediction"
       >
-        {state === "saving"
-          ? "Guardando…"
-          : state === "saved"
-            ? "¡Guardado!"
-            : "Guardar predicción"}
+        <span className="inline-flex items-center justify-center gap-1.5">
+          {state === "saving"
+            ? "Guardando…"
+            : state === "saved"
+              ? "¡Guardado!"
+              : "Guardar predicción"}
+          {state === "saved" && (
+            <svg
+              className="h-4 w-4 motion-safe:animate-[check-pop_220ms_ease-out]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+        </span>
       </button>
       {state === "locked" && (
         <p className="text-xs text-center text-muted-foreground" data-testid="prediction-locked">

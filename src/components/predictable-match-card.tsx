@@ -178,6 +178,7 @@ export function PredictableMatchCard({
   }, []);
 
   const isSubmitting = submittingProp ?? submitState === "submitting";
+  const isSaved = submitState === "saved";
 
   const handleSubmit = async () => {
     if (onSave) {
@@ -286,30 +287,53 @@ export function PredictableMatchCard({
         >
           El partido ya está cerrado.
         </p>
-      ) : submitState === "saved" ? (
-        <p
-          className="text-sm text-center font-semibold"
-          style={{ color: "var(--pitch-green-ink)" }}
-          data-testid="prediction-saved"
-        >
-          ¡Guardado!
-        </p>
       ) : (
-        // idle | submitting | error — always show the button (bug fix: never hide it)
+        // The button stays mounted across idle | submitting | saved | error and
+        // reflects state in place — no layout swap, no detached confirmation text.
         <button
           type="button"
           onClick={() => {
             void handleSubmit();
           }}
-          disabled={isSubmitting}
-          className="w-full py-3 rounded-md bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50 transition-colors"
+          disabled={isSubmitting || isSaved}
+          aria-live="polite"
+          className={[
+            "w-full py-3 rounded-md text-sm font-semibold select-none",
+            "transition-[background-color,transform,box-shadow] duration-200 ease-out",
+            "active:scale-[0.98] disabled:active:scale-100",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
+            isSaved
+              ? "bg-pitch-green text-surface shadow-lifted"
+              : "bg-primary text-primary-foreground hover:bg-pitch-green-deep disabled:opacity-50",
+          ].join(" ")}
           data-testid="submit-prediction"
         >
-          {isSubmitting
-            ? "Guardando…"
-            : hasSavedLocally
-              ? "Editar predicción"
-              : "Guardar predicción"}
+          <span
+            className="inline-flex items-center justify-center gap-1.5"
+            data-testid={isSaved ? "prediction-saved" : undefined}
+          >
+            {isSubmitting
+              ? "Guardando…"
+              : isSaved
+                ? "¡Guardado!"
+                : hasSavedLocally
+                  ? "Editar predicción"
+                  : "Guardar predicción"}
+            {isSaved && (
+              <svg
+                className="h-4 w-4 motion-safe:animate-[check-pop_220ms_ease-out]"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={3}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </span>
         </button>
       )}
 

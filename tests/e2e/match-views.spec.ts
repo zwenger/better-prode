@@ -163,7 +163,7 @@ test.describe("Match Views — match list, predictions, drawer", () => {
   // save the button reappears within 2 s without navigation.
   // ---------------------------------------------------------------------------
 
-  test("submit button reappears as Editar predicción after a successful save without reload", async () => {
+  test("submit button reverts to Editar predicción in place after a successful save without reload", async () => {
     await seedUserAndInjectSession(page, context, matchViewsUser);
     await page.goto("/matches");
 
@@ -172,10 +172,10 @@ test.describe("Match Views — match list, predictions, drawer", () => {
     await expect(section).toBeVisible({ timeout: 15000 });
 
     // Identify the first card that has a submit button (predictable match).
-    // Pin the card by its data-match-id so the locator stays stable even while the
-    // card transitions through "submitting" → "saved" → "idle" states. A filter
-    // locator re-evaluates on every assertion and would drift to a different card
-    // while the original card's submit-prediction testid is temporarily absent.
+    // Pin the card by its data-match-id so the locator stays stable while the card
+    // transitions through "submitting" → "saved" → "idle". The button now stays
+    // mounted across all states (it relabels in place rather than being swapped out
+    // for a separate confirmation), so we assert on its text, not its presence.
     const firstPredictableCard = page.getByTestId("match-card").filter({
       has: page.getByTestId("submit-prediction"),
     }).first();
@@ -186,19 +186,17 @@ test.describe("Match Views — match list, predictions, drawer", () => {
     // Click save on the first predictable card.
     await pinnedCard.getByTestId("submit-prediction").click();
 
-    // Wait for the transient "¡Guardado!" confirmation to appear on THIS card.
+    // The transient "¡Guardado!" confirmation appears INSIDE the button on THIS card.
     await expect(pinnedCard.getByTestId("prediction-saved")).toBeVisible({ timeout: 5000 });
 
-    // The button MUST reappear within 2 s after the flash (1.5 s + buffer).
-    // This asserts it becomes visible WITHOUT a reload (no page navigation).
-    await expect(pinnedCard.getByTestId("submit-prediction")).toBeVisible({ timeout: 3500 });
+    // After the flash (1.5 s + buffer) the button reverts in place to
+    // "Editar predicción" — without a reload or navigation.
+    await expect(pinnedCard.getByTestId("submit-prediction")).toHaveText("Editar predicción", {
+      timeout: 3500,
+    });
 
     // Verify the URL did not change (no redirect happened).
     expect(page.url()).toContain("/matches");
-
-    // Verify the button is labeled for edit (baseline saved) on THIS card.
-    const buttonText = await pinnedCard.getByTestId("submit-prediction").textContent();
-    expect(buttonText?.trim()).toBe("Editar predicción");
   });
 
   // ---------------------------------------------------------------------------

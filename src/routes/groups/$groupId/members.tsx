@@ -13,7 +13,7 @@ import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router"
 import { AppShell } from "#/components/app-shell";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/start-server-core";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { auth } from "#/infra/auth/auth";
 import { getDb } from "#/infra/db/client";
 import { eq } from "drizzle-orm";
@@ -176,17 +176,48 @@ function RoleBadge({ role }: { role: GroupRole }) {
   );
 }
 
+type MemberAction = "promote" | "remove";
+const actionKey = (userId: string, action: MemberAction) => `${userId}:${action}`;
+
 function MembersPage() {
   const { groupId } = useParams({ from: "/groups/$groupId/members" });
   const data = Route.useLoaderData();
   const navigate = useNavigate();
   const [members, setMembers] = useState<MemberEntry[]>(data.members);
   const [error, setError] = useState<string | null>(null);
+  // Per-button async state, keyed by `${userId}:${action}` → "pending" | "done".
+  // Mirrors the save-prediction / copy-link pattern: pending → success → revert.
+  const [actionState, setActionState] = useState<Record<string, "pending" | "done" | undefined>>(
+    {}
+  );
+  const revertTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  useEffect(() => {
+    const timers = revertTimers.current;
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  const clearAction = (key: string) =>
+    setActionState((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+
+  const scheduleRevert = (key: string) => {
+    const timer = setTimeout(() => {
+      clearAction(key);
+      revertTimers.current.delete(timer);
+    }, 1500);
+    revertTimers.current.add(timer);
+  };
 
   const canManage = data.currentUserRole === "owner" || data.currentUserRole === "admin";
 
   const handleRemove = async (targetUserId: string) => {
+    const key = actionKey(targetUserId, "remove");
     setError(null);
+    setActionState((prev) => ({ ...prev, [key]: "pending" }));
     try {
       await removeMemberAction({ data: { groupId, targetUserId } });
 
@@ -196,20 +227,27 @@ function MembersPage() {
         return;
       }
 
+      // Row unmounts on success — no revert needed.
       setMembers((prev) => prev.filter((m) => m.userId !== targetUserId));
     } catch (err) {
+      clearAction(key);
       setError(err instanceof Error ? err.message : "Error al eliminar miembro.");
     }
   };
 
   const handlePromote = async (targetUserId: string, newRole: GroupRole) => {
+    const key = actionKey(targetUserId, "promote");
     setError(null);
+    setActionState((prev) => ({ ...prev, [key]: "pending" }));
     try {
       await promoteMemberAction({ data: { groupId, targetUserId, newRole } });
       setMembers((prev) =>
         prev.map((m) => (m.userId === targetUserId ? { ...m, role: newRole } : m))
       );
+      setActionState((prev) => ({ ...prev, [key]: "done" }));
+      scheduleRevert(key);
     } catch (err) {
+      clearAction(key);
       setError(err instanceof Error ? err.message : "Error al cambiar rol.");
     }
   };
@@ -232,6 +270,8 @@ function MembersPage() {
         {members.map((member) => {
           const isSelf = member.userId === data.currentUserId;
           const isOwner = member.role === "owner";
+          const promoteState = actionState[actionKey(member.userId, "promote")];
+          const removeState = actionState[actionKey(member.userId, "remove")];
 
           return (
             <li
@@ -256,10 +296,17 @@ function MembersPage() {
                     onClick={() =>
                       handlePromote(member.userId, member.role === "admin" ? "member" : "admin")
                     }
-                    className="px-2 py-1 text-xs border rounded hover:bg-accent"
+                    disabled={promoteState === "pending"}
+                    className="px-2 py-1 text-xs border rounded hover:bg-accent disabled:opacity-60"
                     data-testid="toggle-admin-btn"
                   >
-                    {member.role === "admin" ? "Bajar a miembro" : "Hacer admin"}
+                    {promoteState === "pending"
+                      ? "Cambiando…"
+                      : promoteState === "done"
+                        ? "✓ Listo"
+                        : member.role === "admin"
+                          ? "Bajar a miembro"
+                          : "Hacer admin"}
                   </button>
                 )}
 
@@ -268,7 +315,8 @@ function MembersPage() {
                   <button
                     type="button"
                     onClick={() => handleRemove(member.userId)}
-                    className={`px-2 py-1 text-xs border rounded ${
+                    disabled={removeState === "pending"}
+                    className={`px-2 py-1 text-xs border rounded disabled:opacity-60 ${
                       isSelf
                         ? "hover:bg-accent text-muted-foreground"
                         : canManage
@@ -277,7 +325,13 @@ function MembersPage() {
                     }`}
                     data-testid={isSelf ? "leave-group-btn" : "remove-member-btn"}
                   >
-                    {isSelf ? "Salir del grupo" : "Eliminar"}
+                    {removeState === "pending"
+                      ? isSelf
+                        ? "Saliendo…"
+                        : "Eliminando…"
+                      : isSelf
+                        ? "Salir del grupo"
+                        : "Eliminar"}
                   </button>
                 )}
               </div>

@@ -240,6 +240,21 @@
       animation: none;
     }
   }
+
+  /* Success checkmark pop — used by save buttons on the "saved" flash */
+  @keyframes check-pop {
+    from {
+      transform: scale(0.4);
+      opacity: 0;
+    }
+    60% {
+      transform: scale(1.15);
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
 }
 
 html,
