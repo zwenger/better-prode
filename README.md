@@ -24,32 +24,32 @@ The original inspiration — [prodeenlinea.com](https://prodeenlinea.com) — co
 
 ## Features
 
-| Feature | Details |
-|---------|---------|
-| Google sign-in | OAuth 2.0 via Better Auth; user records in your own DB |
-| Per-match predictions | One score prediction per (user, match), editable until T−5min |
-| Server-authoritative lock | Deadline enforced server-side — no client-clock spoofing |
-| Scoring: pleno system | 0 / 1 / 3 / 4 / 7 pts — outcome, exact goals, and both for pleno |
-| Groups | Create, invite, join, manage members (owner / admin / member roles) |
-| Leaderboard | Per-group standings, cached at the edge, updated seconds after settlement |
-| In-progress view | See same-group predictions once a match kicks off |
-| Pre-kickoff reminders | Push notifications for pool members who haven't predicted yet |
-| Hybrid result ingestion | Auto (Football-Data.org or API-Football) + manual admin backstop |
-| "Manual wins and pins" | Admin can override and lock a result; the API will never overwrite it |
+| Feature                   | Details                                                                   |
+| ------------------------- | ------------------------------------------------------------------------- |
+| Google sign-in            | OAuth 2.0 via Better Auth; user records in your own DB                    |
+| Per-match predictions     | One score prediction per (user, match), editable until T−5min             |
+| Server-authoritative lock | Deadline enforced server-side — no client-clock spoofing                  |
+| Scoring: pleno system     | 0 / 1 / 3 / 4 / 7 pts — outcome, exact goals, and both for pleno          |
+| Groups                    | Create, invite, join, manage members (owner / admin / member roles)       |
+| Leaderboard               | Per-group standings, cached at the edge, updated seconds after settlement |
+| In-progress view          | See same-group predictions once a match kicks off                         |
+| Pre-kickoff reminders     | Push notifications for pool members who haven't predicted yet             |
+| Hybrid result ingestion   | Auto (Football-Data.org or API-Football) + manual admin backstop          |
+| "Manual wins and pins"    | Admin can override and lock a result; the API will never overwrite it     |
 
 ---
 
 ## Tech stack
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | [TanStack Start](https://tanstack.com/start) (SSR + file-based routing) |
-| Runtime | [Cloudflare Workers](https://workers.cloudflare.com/) + [Durable Objects](https://developers.cloudflare.com/durable-objects/) |
-| Database | [Turso](https://turso.tech/) (libSQL / SQLite) |
-| Auth | [Better Auth](https://www.better-auth.com/) + Google OAuth |
-| UI | [Tailwind CSS v4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) |
-| Testing | [Vitest](https://vitest.dev/) (unit + workers pool) + [Playwright](https://playwright.dev/) (E2E) |
-| Bundler | [Vite](https://vitejs.dev/) + [@cloudflare/vite-plugin](https://www.npmjs.com/package/@cloudflare/vite-plugin) |
+| Layer     | Technology                                                                                                                    |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Framework | [TanStack Start](https://tanstack.com/start) (SSR + file-based routing)                                                       |
+| Runtime   | [Cloudflare Workers](https://workers.cloudflare.com/) + [Durable Objects](https://developers.cloudflare.com/durable-objects/) |
+| Database  | [Turso](https://turso.tech/) (libSQL / SQLite)                                                                                |
+| Auth      | [Better Auth](https://www.better-auth.com/) + Google OAuth                                                                    |
+| UI        | [Tailwind CSS v4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/)                                             |
+| Testing   | [Vitest](https://vitest.dev/) (unit + workers pool) + [Playwright](https://playwright.dev/) (E2E)                             |
+| Bundler   | [Vite](https://vitejs.dev/) + [@cloudflare/vite-plugin](https://www.npmjs.com/package/@cloudflare/vite-plugin)                |
 
 ---
 
@@ -59,13 +59,13 @@ The original inspiration — [prodeenlinea.com](https://prodeenlinea.com) — co
 
 Before you begin, you need accounts and credentials from these services:
 
-| Service | What you need | Free tier? |
-|---------|--------------|-----------|
-| [Cloudflare](https://dash.cloudflare.com/) | Account + Wrangler CLI authenticated | Yes |
-| [Turso](https://app.turso.tech/) | Database URL + auth token | Yes |
-| [Google Cloud](https://console.cloud.google.com/apis/credentials) | OAuth 2.0 Client ID + Secret | Yes |
-| [Football-Data.org](https://www.football-data.org/) | API token | Yes (free tier) |
-| [API-Football](https://www.api-football.com/) | API key (optional, alternative provider) | Free tier available |
+| Service                                                           | What you need                            | Free tier?          |
+| ----------------------------------------------------------------- | ---------------------------------------- | ------------------- |
+| [Cloudflare](https://dash.cloudflare.com/)                        | Account + Wrangler CLI authenticated     | Yes                 |
+| [Turso](https://app.turso.tech/)                                  | Database URL + auth token                | Yes                 |
+| [Google Cloud](https://console.cloud.google.com/apis/credentials) | OAuth 2.0 Client ID + Secret             | Yes                 |
+| [Football-Data.org](https://www.football-data.org/)               | API token                                | Yes (free tier)     |
+| [API-Football](https://www.api-football.com/)                     | API key (optional, alternative provider) | Free tier available |
 
 Node.js 22+ is required. Use the `.nvmrc` file: `nvm use`.
 
@@ -116,6 +116,25 @@ npm run db:migrate
 npm run db:seed
 ```
 
+`npm run db:migrate` is **the** migration path. It runs `scripts/db-migrate.ts`,
+applies the hand-written `db/migrations/*.sql` files in filename order, and
+tracks what has been applied in a `schema_migrations(filename, applied_at)`
+table — so it is idempotent (re-running applies only what is pending). Tests use
+the exact same applier, so local, CI, and production schemas stay identical.
+
+```bash
+# See what is pending vs applied without changing anything
+npm run db:migrate -- --status
+
+# Record a migration as applied WITHOUT executing it (one-time reconciliation
+# of a migration that is already present in the DB but was never recorded)
+npm run db:migrate -- --mark-applied 0003_match_group_stage.sql
+```
+
+> `npm run db:generate` (drizzle-kit generate) is kept only as an optional aid
+> for authoring/diffing SQL from the Drizzle schema. `drizzle-kit migrate` is
+> **not** used — `db:migrate` is the only sanctioned apply path.
+
 #### 4. Create the Cloudflare KV namespace
 
 The leaderboard edge cache uses a KV namespace. Create it and update `wrangler.jsonc`:
@@ -137,9 +156,17 @@ npm run dev
 **Before deploying**, complete these steps in order:
 
 **6a. Run migrations against your production Turso database.**
-The `npm run deploy` script does NOT run migrations automatically.
+The `npm run deploy` script does NOT run migrations automatically. `db:migrate`
+applies only the pending `db/migrations/*.sql` files (tracked in
+`schema_migrations`), so it is safe to re-run.
 
 ```bash
+# Inspect first (dry-run, applies nothing)
+TURSO_DATABASE_URL=libsql://<db-name>-<org>.turso.io \
+  TURSO_AUTH_TOKEN=<your-token> \
+  npm run db:migrate -- --status
+
+# Then apply
 TURSO_DATABASE_URL=libsql://<db-name>-<org>.turso.io \
   TURSO_AUTH_TOKEN=<your-token> \
   npm run db:migrate
@@ -163,6 +190,7 @@ npx wrangler secret put VAPID_SUBJECT
 
 **6c. Add the production redirect URI in Google Cloud Console.**
 Go to [APIs & Credentials](https://console.cloud.google.com/apis/credentials), open your OAuth 2.0 Client, and add:
+
 ```
 https://<your-worker>.workers.dev/api/auth/callback/google
 ```
