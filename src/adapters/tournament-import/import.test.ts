@@ -175,6 +175,170 @@ describe("importTournament — idempotency", () => {
 });
 
 // ---------------------------------------------------------------------------
+// TBD match import (spec: Import Persistence and Repoint)
+// ---------------------------------------------------------------------------
+
+describe("importTournament — TBD match upsert and repoint", () => {
+  it("initial import of a TBD match stores null team IDs and placeholder codes", async () => {
+    // Seed tournament (no teams needed — TBD match has no FK targets)
+    await db.$client.execute({
+      sql: `INSERT INTO tournament (id, name, created_at) VALUES ('17-285023', 'FIFA WC 2026', '2026-01-01')`,
+      args: [],
+    });
+
+    const tbdStructure: TournamentStructure = {
+      tournamentId: "17-285023",
+      name: "FIFA World Cup 2026™",
+      teams: [],
+      matches: [
+        {
+          id: "fifa-m-tbd-001",
+          homeTeamId: null,
+          awayTeamId: null,
+          homePlaceholder: "W74",
+          awayPlaceholder: "RU101",
+          kickoffUtc: "2026-07-01T20:00:00.000Z",
+          status: "scheduled",
+          homeScore: null,
+          awayScore: null,
+          group: "",
+          stage: "289274",
+        },
+      ],
+    };
+
+    await importTournament(tbdStructure, db);
+
+    const row = await db.query.match.findFirst({
+      where: (m, { eq }) => eq(m.id, "fifa-m-tbd-001"),
+    });
+
+    expect(row).toBeDefined();
+    expect(row?.homeTeamId).toBeNull();
+    expect(row?.awayTeamId).toBeNull();
+    expect(row?.homePlaceholder).toBe("W74");
+    expect(row?.awayPlaceholder).toBe("RU101");
+  });
+
+  it("repoint: subsequent import with concrete team ID sets it and clears placeholder", async () => {
+    await db.$client.execute({
+      sql: `INSERT INTO tournament (id, name, created_at) VALUES ('17-285023', 'FIFA WC 2026', '2026-01-01')`,
+      args: [],
+    });
+    await db.$client.execute({
+      sql: `INSERT INTO team (id, tournament_id, name, code) VALUES ('fifa-t-43911', '17-285023', 'Mexico', 'MX')`,
+      args: [],
+    });
+
+    // Initial TBD import
+    const tbdStructure: TournamentStructure = {
+      tournamentId: "17-285023",
+      name: "FIFA World Cup 2026™",
+      teams: [],
+      matches: [
+        {
+          id: "fifa-m-tbd-002",
+          homeTeamId: null,
+          awayTeamId: null,
+          homePlaceholder: "W74",
+          awayPlaceholder: "RU101",
+          kickoffUtc: "2026-07-01T20:00:00.000Z",
+          status: "scheduled",
+          homeScore: null,
+          awayScore: null,
+          group: "",
+          stage: "289274",
+        },
+      ],
+    };
+    await importTournament(tbdStructure, db);
+
+    // Simulate settlement path setting status/score on the match (must NOT be overwritten)
+    await db.$client.execute({
+      sql: `UPDATE match SET status = 'finished', home_score = 2, away_score = 1 WHERE id = 'fifa-m-tbd-002'`,
+      args: [],
+    });
+
+    // Repoint: FIFA API now provides concrete home team, away side still TBD
+    const repointStructure: TournamentStructure = {
+      tournamentId: "17-285023",
+      name: "FIFA World Cup 2026™",
+      teams: [{ id: "fifa-t-43911", name: "Mexico", code: "MX" }],
+      matches: [
+        {
+          id: "fifa-m-tbd-002",
+          homeTeamId: "fifa-t-43911",
+          awayTeamId: null,
+          homePlaceholder: null,
+          awayPlaceholder: "RU101",
+          kickoffUtc: "2026-07-01T20:00:00.000Z",
+          status: "scheduled",
+          homeScore: null,
+          awayScore: null,
+          group: "",
+          stage: "289274",
+        },
+      ],
+    };
+    await importTournament(repointStructure, db);
+
+    const row = await db.query.match.findFirst({
+      where: (m, { eq }) => eq(m.id, "fifa-m-tbd-002"),
+    });
+
+    expect(row?.homeTeamId).toBe("fifa-t-43911");
+    expect(row?.homePlaceholder).toBeNull();
+    expect(row?.awayTeamId).toBeNull();
+    expect(row?.awayPlaceholder).toBe("RU101");
+    // Result fields must NOT be overwritten by import
+    expect(row?.status).toBe("finished");
+    expect(row?.homeScore).toBe(2);
+    expect(row?.awayScore).toBe(1);
+  });
+
+  it("repoint is idempotent — re-running resolved import produces no error", async () => {
+    await db.$client.execute({
+      sql: `INSERT INTO tournament (id, name, created_at) VALUES ('17-285023', 'FIFA WC 2026', '2026-01-01')`,
+      args: [],
+    });
+    await db.$client.execute({
+      sql: `INSERT INTO team (id, tournament_id, name, code) VALUES ('fifa-t-43911', '17-285023', 'Mexico', 'MX'), ('fifa-t-43854', '17-285023', 'Ivory Coast', 'CI')`,
+      args: [],
+    });
+
+    const resolvedStructure: TournamentStructure = {
+      tournamentId: "17-285023",
+      name: "FIFA World Cup 2026™",
+      teams: [
+        { id: "fifa-t-43911", name: "Mexico", code: "MX" },
+        { id: "fifa-t-43854", name: "Ivory Coast", code: "CI" },
+      ],
+      matches: [
+        {
+          id: "fifa-m-resolved-001",
+          homeTeamId: "fifa-t-43911",
+          awayTeamId: "fifa-t-43854",
+          homePlaceholder: null,
+          awayPlaceholder: null,
+          kickoffUtc: "2026-07-01T20:00:00.000Z",
+          status: "scheduled",
+          homeScore: null,
+          awayScore: null,
+          group: "",
+          stage: "289274",
+        },
+      ],
+    };
+
+    await expect(importTournament(resolvedStructure, db)).resolves.not.toThrow();
+    await expect(importTournament(resolvedStructure, db)).resolves.not.toThrow();
+
+    const matches = await db.query.match.findMany();
+    expect(matches.filter((m) => m.id === "fifa-m-resolved-001")).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Task 2.3: Tournament row idempotency
 // ---------------------------------------------------------------------------
 

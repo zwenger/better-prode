@@ -61,6 +61,10 @@ interface FifaMatch {
   SeasonName?: FifaLocalizedString[];
   Home?: FifaTeamSide;
   Away?: FifaTeamSide;
+  /** FIFA placeholder code for the home side (e.g. "W74") — present for knockout TBD matches. */
+  PlaceHolderA?: string;
+  /** FIFA placeholder code for the away side (e.g. "RU101") — present for knockout TBD matches. */
+  PlaceHolderB?: string;
 }
 
 interface FifaApiResponse {
@@ -186,8 +190,15 @@ export class FifaAdapter implements TournamentSource, ResultSource {
 
         const homeTeamId = parseTeamId(m.Home?.IdTeam);
         const awayTeamId = parseTeamId(m.Away?.IdTeam);
-        if (!homeTeamId || !awayTeamId) {
-          warnings.push(`Skipping match ${matchId} — missing team id`);
+        const homePlaceholder = m.PlaceHolderA?.trim() || null;
+        const awayPlaceholder = m.PlaceHolderB?.trim() || null;
+
+        // Skip only when BOTH the team field AND the placeholder are absent for a side.
+        // A match where at least one side has a team or placeholder is kept.
+        const homeSidePresent = homeTeamId !== null || homePlaceholder !== null;
+        const awaySidePresent = awayTeamId !== null || awayPlaceholder !== null;
+        if (!homeSidePresent && !awaySidePresent) {
+          warnings.push(`Skipping match ${matchId} — no team id or placeholder for either side`);
           continue;
         }
 
@@ -205,15 +216,15 @@ export class FifaAdapter implements TournamentSource, ResultSource {
           );
         }
 
-        // Register teams (idempotent — same id seen in multiple matches)
-        if (!teamsMap.has(homeTeamId)) {
+        // Register only concrete teams (idempotent — same id seen in multiple matches)
+        if (homeTeamId && !teamsMap.has(homeTeamId)) {
           teamsMap.set(homeTeamId, {
             id: homeTeamId,
             name: parseTeamName(m.Home?.TeamName),
             code: getIsoCode(m.Home?.IdTeam ?? ""),
           });
         }
-        if (!teamsMap.has(awayTeamId)) {
+        if (awayTeamId && !teamsMap.has(awayTeamId)) {
           teamsMap.set(awayTeamId, {
             id: awayTeamId,
             name: parseTeamName(m.Away?.TeamName),
@@ -225,6 +236,8 @@ export class FifaAdapter implements TournamentSource, ResultSource {
           id: matchId,
           homeTeamId,
           awayTeamId,
+          homePlaceholder,
+          awayPlaceholder,
           kickoffUtc,
           status,
           homeScore: parseScore(m.Home?.Score),
