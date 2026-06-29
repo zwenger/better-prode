@@ -38,10 +38,14 @@ export interface TournamentTeam {
 export interface TournamentMatch {
   /** Stable domain id — e.g. "fifa-m-400021443". */
   id: string;
-  /** Domain id of the home team. */
-  homeTeamId: string;
-  /** Domain id of the away team. */
-  awayTeamId: string;
+  /** Domain id of the home team. Null when the opponent is not yet determined. */
+  homeTeamId: string | null;
+  /** Domain id of the away team. Null when the opponent is not yet determined. */
+  awayTeamId: string | null;
+  /** FIFA placeholder code for the home side (e.g. "W74"), or null. */
+  homePlaceholder: string | null;
+  /** FIFA placeholder code for the away side (e.g. "RU101"), or null. */
+  awayPlaceholder: string | null;
   /** Kickoff timestamp in UTC, ISO 8601. */
   kickoffUtc: string;
   /** Normalized match status. */

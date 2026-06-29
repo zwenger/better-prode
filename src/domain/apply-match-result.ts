@@ -24,8 +24,8 @@ export type ResultSource = "auto" | "manual";
 export interface MatchRecord {
   id: string;
   tournamentId: string;
-  homeTeamId: string;
-  awayTeamId: string;
+  homeTeamId: string | null;
+  awayTeamId: string | null;
   kickoffUtc: string;
   status: MatchStatus;
   homeScore: number | null;
