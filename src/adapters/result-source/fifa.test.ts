@@ -217,6 +217,40 @@ describe("FifaAdapter — domain mapping", () => {
       expect(matches[0].awayPlaceholder).toBe("W75");
     });
 
+    it("one-sided-absent match: kept but warns that one side has no team or placeholder", async () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const oneSidedFixture = {
+        IdMatch: "400099004",
+        IdCompetition: "17",
+        IdSeason: "285023",
+        IdStage: "289274",
+        Date: "2026-07-04T20:00:00Z",
+        MatchStatus: 1,
+        Home: {
+          IdTeam: "43911",
+          TeamName: [{ Locale: "en-GB", Description: "Canada" }],
+        },
+        // Away side fully absent: no team AND no placeholder.
+        Away: null,
+      };
+      const adapter = adapterWithFixture(oneSidedFixture);
+      const { matches } = await adapter.fetchStructure("17", "285023");
+
+      // The record is KEPT (one side is present) — predictable=false handles display.
+      expect(matches).toHaveLength(1);
+      expect(matches[0].homeTeamId).toBe("fifa-t-43911");
+      expect(matches[0].awayTeamId).toBeNull();
+      expect(matches[0].awayPlaceholder).toBeNull();
+
+      // But the one-sided absence is observable via a logged warning.
+      const warnings = warnSpy.mock.calls.flat();
+      const warningText = JSON.stringify(warnings);
+      expect(warningText).toContain("fifa-m-400099004");
+      expect(warningText).toMatch(/one side has no team id or placeholder/i);
+
+      warnSpy.mockRestore();
+    });
+
     it("true-null-both-sides (no team AND no placeholder): match is skipped", async () => {
       const nullFixture = {
         IdMatch: "400099003",

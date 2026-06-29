@@ -16,6 +16,7 @@
  */
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 import { runIngest } from "#/app/run-ingest";
+import { runStructureRefresh } from "#/app/run-structure-refresh";
 import { shouldThrottle, throttleKey } from "#/app/refresh-throttle";
 
 // S1: build-time guard — VITE_TEST_AUTH_ENABLED is only true in e2e builds
@@ -128,19 +129,39 @@ const entry = createServerEntry({
 export default {
   ...entry,
 
-  // Cloudflare Workers scheduled() handler — fired by the cron trigger.
-  // Cadence: every 5 minutes (see wrangler.jsonc triggers.crons, pattern "* /5 * * * *").
+  // Cloudflare Workers scheduled() handler — fired by the cron triggers.
+  // Two crons are registered (see wrangler.jsonc triggers.crons):
+  //   - "*/5 * * * *" → result reconcile: settles results of EXISTING matches.
+  //   - "0 */6 * * *" → structure refresh: re-imports the tournament structure
+  //                      so concrete knockout team IDs appear as the bracket
+  //                      advances (the 5-min cron never imports new fixtures).
+  // event.cron is the exact pattern string that fired, so we branch on it.
   //
-  // Design decision #1 (result-refresh): ctx.waitUntil keeps the worker alive
-  // until runIngest completes. The cron does NOT consult the throttle key —
-  // only the on-demand /api/refresh path throttles (to dedupe viewer bursts).
+  // ctx.waitUntil keeps the worker alive until the dispatched task completes.
+  // Neither cron consults the throttle key — only the on-demand /api/refresh
+  // path throttles (to dedupe viewer bursts).
   async scheduled(
-    _event: ScheduledEvent,
+    event: ScheduledEvent,
     env: { MATCH_DO: DurableObjectNamespace; TOURNAMENT_ID?: string },
     ctx: ExecutionContext
   ): Promise<void> {
     const tid = env.TOURNAMENT_ID ?? process.env["TOURNAMENT_ID"] ?? "17-285023";
-    ctx.waitUntil(runIngest(env, tid));
+
+    if (event.cron === "0 */6 * * *") {
+      // 6-hour structure refresh — no env/MATCH_DO needed (structure-only upsert).
+      ctx.waitUntil(
+        runStructureRefresh(tid).catch((err: unknown) => {
+          console.error("[scheduled] structure refresh failed", err);
+        })
+      );
+    } else {
+      // Default: 5-minute result reconcile.
+      ctx.waitUntil(
+        runIngest(env, tid).catch((err: unknown) => {
+          console.error("[scheduled] ingest failed", err);
+        })
+      );
+    }
   },
 };
 

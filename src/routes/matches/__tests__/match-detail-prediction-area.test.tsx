@@ -49,6 +49,27 @@ describe("MatchDetailPredictionArea — TBD match (predictable=false)", () => {
   });
 });
 
+describe("MatchDetailPredictionArea — partial match (one team set, one TBD)", () => {
+  // A partial match (e.g. homeTeamId set, awayTeamId null) shapes to
+  // predictable=false in the loader, so the detail area must render the TBD
+  // banner — NOT the editor — even though one side is concrete.
+  it("renders the TBD banner and NOT the editor when predictable=false", () => {
+    render(
+      <MatchDetailPredictionArea
+        matchId="m-partial"
+        predictable={false}
+        isOpen={true}
+        prediction={null}
+        isFinished={false}
+      />
+    );
+    expect(screen.getByTestId("tbd-banner")).toBeTruthy();
+    expect(screen.getByText("Equipos por confirmar")).toBeTruthy();
+    expect(screen.queryByTestId("prediction-editor")).toBeNull();
+    expect(screen.queryByTestId("save-prediction")).toBeNull();
+  });
+});
+
 describe("MatchDetailPredictionArea — concrete match (predictable=true)", () => {
   it("renders the prediction editor when isOpen=true", () => {
     render(

@@ -123,6 +123,27 @@ describe('markMigrationApplied', () => {
       markMigrationApplied(client, dir, '9999_does_not_exist.sql'),
     ).rejects.toThrow()
   })
+
+  it('is idempotent: marking twice leaves exactly one row with unchanged applied_at', async () => {
+    writeMigration('0001_a.sql', `CREATE TABLE a (id TEXT PRIMARY KEY);`)
+
+    await markMigrationApplied(client, dir, '0001_a.sql')
+    const first = await client.execute({
+      sql: `SELECT applied_at FROM schema_migrations WHERE filename = '0001_a.sql'`,
+      args: [],
+    })
+    const firstAppliedAt = first.rows[0]?.[0]
+
+    await markMigrationApplied(client, dir, '0001_a.sql')
+    const after = await client.execute({
+      sql: `SELECT applied_at FROM schema_migrations WHERE filename = '0001_a.sql'`,
+      args: [],
+    })
+
+    // Exactly one row, and the original applied_at is preserved (INSERT OR IGNORE).
+    expect(after.rows.length).toBe(1)
+    expect(after.rows[0]?.[0]).toBe(firstAppliedAt)
+  })
 })
 
 describe('getMigrationStatus', () => {

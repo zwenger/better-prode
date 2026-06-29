@@ -61,6 +61,12 @@ describe("decodePlaceholder — FIFA code to Spanish label", () => {
     it("3ABC → 'Mejor 3° (A/B/C)'", () => {
       expect(decodePlaceholder("3ABC")).toBe("Mejor 3° (A/B/C)");
     });
+
+    it("3A → 'Por confirmar' (single-letter best-third is out of format)", () => {
+      // The best-third pattern requires 2+ group letters; a single letter is
+      // not a valid best-third code, so it must fall through to the fallback.
+      expect(decodePlaceholder("3A")).toBe("Por confirmar");
+    });
   });
 
   describe("fallback — null, empty, or unrecognized code", () => {

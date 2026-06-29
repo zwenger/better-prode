@@ -28,6 +28,7 @@ import { DrizzleGroupRepository } from "#/adapters/db/group-repository";
 import {
   shapeMatchRows,
   formatKickoffUtc,
+  isPredictableTabMatch,
 } from "#/routes/matches/-match-list-loader";
 import type { MatchListItem } from "#/routes/matches/-match-list-loader";
 import { AppShell } from "#/components/app-shell";
@@ -634,7 +635,7 @@ function MatchListPage() {
 
   const predictable = useMemo(
     // Spec: TBD matches (predictable=false) must be excluded from "Para predecir"
-    () => matches.filter((m) => m.status === "scheduled" && !m.locked && m.predictable),
+    () => matches.filter(isPredictableTabMatch),
     [matches]
   );
   const locked = useMemo(
