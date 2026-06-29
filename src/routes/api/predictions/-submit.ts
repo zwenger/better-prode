@@ -116,7 +116,13 @@ export const submitBatchPredictions = createServerFn({ method: "POST" })
       } else {
         const err = outcome.reason as { status?: number; message?: string };
         if (err.status === 422) {
-          results[matchId] = { status: "locked", message: "match_locked" };
+          // Propagate the actual 422 reason so the two distinct rejection
+          // causes — "match_locked" (kickoff passed) and
+          // "match_teams_not_confirmed_tbd" (TBD match) — stay distinguishable.
+          results[matchId] = {
+            status: "locked",
+            message: err.message ?? "match_locked",
+          };
         } else {
           results[matchId] = { status: "error", message: err.message ?? "Unknown error" };
         }

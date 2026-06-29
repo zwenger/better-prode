@@ -163,7 +163,7 @@ describe("submitPredictionCore — TBD match guard (predictable gate)", () => {
     });
   });
 
-  it("rejects with 4xx error and persists NO prediction when homeTeamId is null", async () => {
+  it("rejects with status 422 and persists NO prediction when homeTeamId is null", async () => {
     const clock = new FakeClock(BEFORE_KICKOFF);
 
     await expect(
@@ -174,7 +174,8 @@ describe("submitPredictionCore — TBD match guard (predictable gate)", () => {
         predRepo,
         clock,
       })
-    ).rejects.toMatchObject({ status: expect.any(Number) });
+      // Pin EXACTLY 422 — the client branches on this status code.
+    ).rejects.toMatchObject({ status: 422 });
 
     const saved = await predRepo.listByMatch(TBD_MATCH_ID);
     expect(saved).toHaveLength(0);

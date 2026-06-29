@@ -13,7 +13,12 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { shapeMatchRows, formatKickoffUtc, formatKickoffShort } from "./-match-list-loader";
+import {
+  shapeMatchRows,
+  formatKickoffUtc,
+  formatKickoffShort,
+  isPredictableTabMatch,
+} from "./-match-list-loader";
 
 const FUTURE_STR = "2026-07-15T20:00:00.000Z"; // well in future → unlocked
 
@@ -243,5 +248,41 @@ describe("shapeMatchRows — predictable flag", () => {
     const rows = [makeRow({ awayName: null, awayTeamId: null, awayPlaceholder: "RU74" })];
     const result = shapeMatchRows(rows, new Map(), fixedNow);
     expect(result[0].awayName).toBe("Perdedor partido 74");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isPredictableTabMatch — the "Para predecir" filter predicate
+//
+// Spec (Predictable Gate): TBD matches (predictable=false) MUST be excluded
+// from the "Para predecir" tab even when scheduled and unlocked.
+// ---------------------------------------------------------------------------
+
+describe("isPredictableTabMatch (Para predecir filter)", () => {
+  it("includes a scheduled, unlocked, predictable match", () => {
+    expect(
+      isPredictableTabMatch({ status: "scheduled", locked: false, predictable: true })
+    ).toBe(true);
+  });
+
+  it("EXCLUDES a TBD match (predictable=false) even when scheduled and unlocked", () => {
+    expect(
+      isPredictableTabMatch({ status: "scheduled", locked: false, predictable: false })
+    ).toBe(false);
+  });
+
+  it("excludes a locked match", () => {
+    expect(
+      isPredictableTabMatch({ status: "scheduled", locked: true, predictable: true })
+    ).toBe(false);
+  });
+
+  it("excludes a non-scheduled match", () => {
+    expect(
+      isPredictableTabMatch({ status: "finished", locked: false, predictable: true })
+    ).toBe(false);
+    expect(
+      isPredictableTabMatch({ status: "in_progress", locked: false, predictable: true })
+    ).toBe(false);
   });
 });

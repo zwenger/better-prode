@@ -94,6 +94,22 @@ export interface MatchListItem {
   userPrediction: UserPrediction | null;
 }
 
+/**
+ * Predicate for the "Para predecir" tab on the matches list.
+ *
+ * A match belongs in that tab only when it is scheduled, NOT locked, AND
+ * predictable (both team IDs confirmed). TBD matches (predictable=false) MUST
+ * be excluded — there is nothing to predict until the teams are known.
+ *
+ * Extracted as a pure function so the filter rule is unit-testable without the
+ * React/TanStack route context.
+ */
+export function isPredictableTabMatch(
+  m: Pick<MatchListItem, "status" | "locked" | "predictable">
+): boolean {
+  return m.status === "scheduled" && !m.locked && m.predictable;
+}
+
 interface RawMatchRow {
   id: string;
   homeName: string | null;

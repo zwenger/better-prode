@@ -202,6 +202,17 @@ export class FifaAdapter implements TournamentSource, ResultSource {
           continue;
         }
 
+        // Exactly one side fully absent (no team AND no placeholder) while the
+        // other is present. We KEEP the record (predictable=false handles
+        // display downstream), but surface a warning so the one-sided absence
+        // is observable rather than silently imported.
+        if (!homeSidePresent || !awaySidePresent) {
+          const absentSide = !homeSidePresent ? "home" : "away";
+          warnings.push(
+            `Match ${matchId}: one side has no team id or placeholder (${absentSide}); keeping record`
+          );
+        }
+
         const kickoffUtc = parseKickoffUtc(m.Date);
         if (!kickoffUtc) {
           warnings.push(`Skipping match ${matchId} — invalid Date: ${String(m.Date)}`);
