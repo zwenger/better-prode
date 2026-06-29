@@ -133,3 +133,64 @@ describe("submitPredictionCore — persists the prediction end-to-end", () => {
     ).rejects.toThrow(/not found/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// TBD match guard (spec: Predictable Gate — Server rejects prediction for TBD match)
+// ---------------------------------------------------------------------------
+
+describe("submitPredictionCore — TBD match guard (predictable gate)", () => {
+  const TBD_MATCH_ID = "m-tbd-guard";
+
+  beforeEach(async () => {
+    db = await createTestDb();
+    matchRepo = new DrizzleMatchRepository(db);
+    predRepo = new DrizzlePredictionRepository(db);
+    const now = new Date().toISOString();
+
+    await db.$client.execute({
+      sql: `INSERT INTO tournament(id, name, created_at) VALUES (?, ?, ?)`,
+      args: ["t-tbd", "Test Tournament", now],
+    });
+    await db.$client.execute({
+      sql: `INSERT INTO "user"(id, name, email, emailVerified, image, createdAt, updatedAt) VALUES (?, ?, ?, 0, NULL, ?, ?)`,
+      args: [USER_ID, "Tester", "tester@test.com", now, now],
+    });
+    // Insert TBD match — both team IDs null
+    await db.$client.execute({
+      sql: `INSERT INTO match(id, tournament_id, home_team_id, away_team_id, kickoff_utc, status, home_placeholder, away_placeholder, created_at)
+            VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, ?)`,
+      args: [TBD_MATCH_ID, "t-tbd", KICKOFF, "scheduled", "W74", "RU101", now],
+    });
+  });
+
+  it("rejects with 4xx error and persists NO prediction when homeTeamId is null", async () => {
+    const clock = new FakeClock(BEFORE_KICKOFF);
+
+    await expect(
+      submitPredictionCore({
+        userId: USER_ID,
+        input: { matchId: TBD_MATCH_ID, homeGoals: 2, awayGoals: 1 },
+        matchRepo,
+        predRepo,
+        clock,
+      })
+    ).rejects.toMatchObject({ status: expect.any(Number) });
+
+    const saved = await predRepo.listByMatch(TBD_MATCH_ID);
+    expect(saved).toHaveLength(0);
+  });
+
+  it("error message indicates TBD/not-predictable condition", async () => {
+    const clock = new FakeClock(BEFORE_KICKOFF);
+
+    await expect(
+      submitPredictionCore({
+        userId: USER_ID,
+        input: { matchId: TBD_MATCH_ID, homeGoals: 1, awayGoals: 0 },
+        matchRepo,
+        predRepo,
+        clock,
+      })
+    ).rejects.toThrow(/tbd|not.?predictable|teams.*not.*confirmed/i);
+  });
+});

@@ -53,6 +53,16 @@ export async function submitPredictionCore(opts: {
     throw new Error(`Match not found: ${input.matchId}`);
   }
 
+  // TBD guard (spec: Predictable Gate — Server rejects prediction for TBD match).
+  // A match is only predictable when BOTH team IDs are confirmed. This is a
+  // security boundary — client-side exclusion from "Para predecir" is not enough.
+  if (match.homeTeamId === null || match.awayTeamId === null) {
+    throw Object.assign(
+      new Error("match_teams_not_confirmed_tbd"),
+      { status: 422 }
+    );
+  }
+
   if (isLocked(match.kickoffUtc, clock)) {
     // S2: HTTP 422 with reason match_locked per spec.
     throw Object.assign(new Error("match_locked"), { status: 422 });
