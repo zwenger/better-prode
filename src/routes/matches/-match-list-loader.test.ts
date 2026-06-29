@@ -23,8 +23,10 @@ interface RawRow {
   homeCode: string | null;
   awayName: string | null;
   awayCode: string | null;
-  homeTeamId: string;
-  awayTeamId: string;
+  homeTeamId: string | null;
+  awayTeamId: string | null;
+  homePlaceholder: string | null;
+  awayPlaceholder: string | null;
   kickoffUtc: string;
   status: string;
   homeScore: number | null;
@@ -41,6 +43,8 @@ function makeRow(overrides: Partial<RawRow> = {}): RawRow {
     awayCode: "BR",
     homeTeamId: "team-ar",
     awayTeamId: "team-br",
+    homePlaceholder: null,
+    awayPlaceholder: null,
     kickoffUtc: FUTURE_STR,
     status: "scheduled",
     homeScore: null,
@@ -158,10 +162,16 @@ describe("shapeMatchRows (match-list loader helper)", () => {
     expect(result[0].userPrediction).toBeNull();
   });
 
-  it("derives homeName from homeTeamId when homeName is null", () => {
-    const rows = [makeRow({ homeName: null })];
+  it("derives homeName from decodePlaceholder when homeName is null and homeTeamId is null", () => {
+    const rows = [makeRow({ homeName: null, homeTeamId: null, homePlaceholder: "W74" })];
     const result = shapeMatchRows(rows, new Map(), fixedNow);
-    expect(result[0].homeName).toBe("team-ar");
+    expect(result[0].homeName).toBe("Ganador partido 74");
+  });
+
+  it("derives homeName as 'Por confirmar' when homeName, homeTeamId, and homePlaceholder are all null", () => {
+    const rows = [makeRow({ homeName: null, homeTeamId: null, homePlaceholder: null })];
+    const result = shapeMatchRows(rows, new Map(), fixedNow);
+    expect(result[0].homeName).toBe("Por confirmar");
   });
 
   it("sets locked=true when now >= kickoff - 5min", () => {
@@ -189,5 +199,49 @@ describe("shapeMatchRows (match-list loader helper)", () => {
 
     expect(result[0].userPrediction).toEqual({ homeGoals: 1, awayGoals: 0 });
     expect(result[1].userPrediction).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// predictable flag (spec: Predictable Gate)
+// ---------------------------------------------------------------------------
+
+describe("shapeMatchRows — predictable flag", () => {
+  const fixedNow = new Date("2026-07-01T18:00:00.000Z");
+
+  it("predictable=true when both team IDs are non-null", () => {
+    const rows = [makeRow({ homeTeamId: "team-ar", awayTeamId: "team-br" })];
+    const result = shapeMatchRows(rows, new Map(), fixedNow);
+    expect(result[0].predictable).toBe(true);
+  });
+
+  it("predictable=false when homeTeamId is null", () => {
+    const rows = [makeRow({ homeTeamId: null, homePlaceholder: "W74" })];
+    const result = shapeMatchRows(rows, new Map(), fixedNow);
+    expect(result[0].predictable).toBe(false);
+  });
+
+  it("predictable=false when awayTeamId is null", () => {
+    const rows = [makeRow({ awayTeamId: null, awayPlaceholder: "RU101" })];
+    const result = shapeMatchRows(rows, new Map(), fixedNow);
+    expect(result[0].predictable).toBe(false);
+  });
+
+  it("predictable=false when both team IDs are null", () => {
+    const rows = [makeRow({ homeTeamId: null, awayTeamId: null, homePlaceholder: "W74", awayPlaceholder: "RU101" })];
+    const result = shapeMatchRows(rows, new Map(), fixedNow);
+    expect(result[0].predictable).toBe(false);
+  });
+
+  it("homeName falls back to decoded placeholder label (not null, not raw teamId)", () => {
+    const rows = [makeRow({ homeName: null, homeTeamId: null, homePlaceholder: "1A" })];
+    const result = shapeMatchRows(rows, new Map(), fixedNow);
+    expect(result[0].homeName).toBe("1° Grupo A");
+  });
+
+  it("awayName falls back to decoded placeholder label", () => {
+    const rows = [makeRow({ awayName: null, awayTeamId: null, awayPlaceholder: "RU74" })];
+    const result = shapeMatchRows(rows, new Map(), fixedNow);
+    expect(result[0].awayName).toBe("Perdedor partido 74");
   });
 });
