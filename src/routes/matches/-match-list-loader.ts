@@ -28,8 +28,7 @@ import { decodePlaceholder } from "#/domain/decode-placeholder";
  *   1. It can be unit-tested without a DOM/component environment.
  *   2. The dash-prefixed module is already the home for pure match-display helpers.
  *   3. A single testable function is easier to verify against the spec requirement.
- */
-/**
+ *
  * @param kickoffUtc - ISO 8601 UTC string
  * @param timeZone   - Optional IANA timezone name (e.g. "America/Argentina/Buenos_Aires").
  *                     When omitted, the viewer's local timezone is used (runtime default).

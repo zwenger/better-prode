@@ -12,29 +12,18 @@
 
 import { useState } from "react";
 import { ScoreStepper } from "#/components/score-stepper";
+import { PointsBadge } from "#/components/points-badge";
 
-interface UserPrediction {
+/**
+ * A settled prediction as shown on the match detail page: the user's score plus
+ * the points it earned (null until the match is settled). Distinct from the
+ * loader's `UserPrediction` ({homeGoals, awayGoals}), which carries no points
+ * because it feeds the editable steppers.
+ */
+export interface SettledPrediction {
   homeGoals: number;
   awayGoals: number;
   points: number | null;
-}
-
-/** Points pill (local copy — same logic as in $matchId.tsx) */
-function PointsBadge({ points }: { points: number }) {
-  const pleno = points === 7;
-  const style: React.CSSProperties = pleno
-    ? { backgroundColor: "var(--glory-gold)", color: "var(--glory-gold-ink)" }
-    : points > 0
-      ? { backgroundColor: "var(--pitch-green-tint)", color: "var(--pitch-green-ink)" }
-      : { backgroundColor: "var(--miss-red-tint)", color: "var(--miss-red-ink)" };
-  return (
-    <span
-      className="shrink-0 rounded-full px-2.5 py-1 text-sm font-bold tabular-nums"
-      style={style}
-    >
-      {pleno ? "✦ +7" : `+${points}`}
-    </span>
-  );
 }
 
 /** Editable prediction steppers + save button (identical to the inline version). */
@@ -115,7 +104,7 @@ export interface MatchDetailPredictionAreaProps {
   predictable: boolean;
   /** True when the match is still open for predictions (scheduled + not locked). */
   isOpen: boolean;
-  prediction: UserPrediction | null;
+  prediction: SettledPrediction | null;
   isFinished: boolean;
 }
 

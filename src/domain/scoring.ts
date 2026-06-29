@@ -20,6 +20,14 @@ export interface GoalCount {
 }
 
 /**
+ * Points awarded for a Pleno (exact score on both sides). Flat value that
+ * overrides the additive rules. Single source of truth — UI badges and the
+ * scoring function both reference this so the "perfect prediction" value never
+ * drifts.
+ */
+export const PLENO_POINTS = 7;
+
+/**
  * Determine the match outcome from a goal count.
  * Returns 'home' | 'draw' | 'away'.
  */
@@ -42,7 +50,7 @@ export function score(prediction: GoalCount, result: GoalCount): number {
     prediction.homeGoals === result.homeGoals &&
     prediction.awayGoals === result.awayGoals
   ) {
-    return 7;
+    return PLENO_POINTS;
   }
 
   // Rules 2–4 are additive (pleno did not match above)

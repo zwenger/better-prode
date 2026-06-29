@@ -12,7 +12,8 @@
  *   3{XXXX}  → "Mejor 3° (A/B/C/D/...)" — letters joined by "/"
  *   null / "" / unrecognized → "Por confirmar"
  *
- * Contract: never throws, never returns a raw FIFA code.
+ * Contract: pure — never throws (it only runs regex matches and string ops on
+ * the input, neither of which can throw), and never returns a raw FIFA code.
  */
 
 const FALLBACK = "Por confirmar";
@@ -34,29 +35,25 @@ const BEST_THIRD_GROUPS = /^3([A-Z]{2,})$/;
 export function decodePlaceholder(code: string | null): string {
   if (!code) return FALLBACK;
 
-  try {
-    let match: RegExpMatchArray | null;
+  let match: RegExpMatchArray | null;
 
-    match = code.match(WINNER_MATCH);
-    if (match) return `Ganador partido ${match[1]}`;
+  match = code.match(WINNER_MATCH);
+  if (match) return `Ganador partido ${match[1]}`;
 
-    match = code.match(RUNNER_UP_MATCH);
-    if (match) return `Perdedor partido ${match[1]}`;
+  match = code.match(RUNNER_UP_MATCH);
+  if (match) return `Perdedor partido ${match[1]}`;
 
-    match = code.match(FIRST_PLACE_GROUP);
-    if (match) return `1° Grupo ${match[1]}`;
+  match = code.match(FIRST_PLACE_GROUP);
+  if (match) return `1° Grupo ${match[1]}`;
 
-    match = code.match(SECOND_PLACE_GROUP);
-    if (match) return `2° Grupo ${match[1]}`;
+  match = code.match(SECOND_PLACE_GROUP);
+  if (match) return `2° Grupo ${match[1]}`;
 
-    match = code.match(BEST_THIRD_GROUPS);
-    if (match) {
-      const letters = match[1].split("").join("/");
-      return `Mejor 3° (${letters})`;
-    }
-
-    return FALLBACK;
-  } catch {
-    return FALLBACK;
+  match = code.match(BEST_THIRD_GROUPS);
+  if (match) {
+    const letters = match[1].split("").join("/");
+    return `Mejor 3° (${letters})`;
   }
+
+  return FALLBACK;
 }
