@@ -40,6 +40,8 @@ import { isLocked } from "#/domain/lock";
 import { SystemClock } from "#/domain/ports/clock";
 import { decodePlaceholder } from "#/domain/decode-placeholder";
 import { MatchDetailPredictionArea } from "./-match-detail-prediction-area";
+import type { SettledPrediction } from "./-match-detail-prediction-area";
+import { PointsBadge } from "#/components/points-badge";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -62,12 +64,6 @@ interface MatchDetail {
   predictable: boolean;
 }
 
-interface UserPrediction {
-  homeGoals: number;
-  awayGoals: number;
-  points: number | null;
-}
-
 interface GroupPredEntry {
   userId: string;
   name: string;
@@ -82,7 +78,7 @@ type FormOutcome = "G" | "E" | "P";
 
 interface LoaderData {
   match: MatchDetail;
-  prediction: UserPrediction | null;
+  prediction: SettledPrediction | null;
   locked: boolean;
   groupPredictions: GroupPredEntry[];
   form: { home: FormOutcome[]; away: FormOutcome[] };
@@ -214,7 +210,7 @@ const getMatchDetail = createServerFn({ method: "GET" })
     const locked = isLocked(matchRecord.kickoffUtc, new SystemClock());
 
     // User's own prediction
-    let userPrediction: UserPrediction | null = null;
+    let userPrediction: SettledPrediction | null = null;
     if (session?.user) {
       const predRows = await db
         .select({
@@ -314,24 +310,6 @@ function StatusBadge({ status }: { status: string }) {
     );
   }
   return null;
-}
-
-/** Points pill — used for group-members prediction list. */
-function PointsBadge({ points }: { points: number }) {
-  const pleno = points === 7;
-  const style: React.CSSProperties = pleno
-    ? { backgroundColor: "var(--glory-gold)", color: "var(--glory-gold-ink)" }
-    : points > 0
-      ? { backgroundColor: "var(--pitch-green-tint)", color: "var(--pitch-green-ink)" }
-      : { backgroundColor: "var(--miss-red-tint)", color: "var(--miss-red-ink)" };
-  return (
-    <span
-      className="shrink-0 rounded-full px-2.5 py-1 text-sm font-bold tabular-nums"
-      style={style}
-    >
-      {pleno ? "✦ +7" : `+${points}`}
-    </span>
-  );
 }
 
 const FORM_STYLE: Record<FormOutcome, React.CSSProperties> = {

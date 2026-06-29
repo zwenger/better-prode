@@ -236,6 +236,57 @@ function LockedMatchCard({
   );
 }
 
+/**
+ * TBD upcoming match — teams not yet confirmed (predictable=false).
+ *
+ * No steppers: there is nothing to predict until the bracket resolves. Shows
+ * the decoded placeholder names plus the same "Equipos por confirmar" banner
+ * the match-detail prediction area uses, so the state reads consistently.
+ */
+function TbdMatchCard({
+  match,
+  onTeamPress,
+}: {
+  match: MatchListItem;
+  onTeamPress: (code: string | null, name: string) => void;
+}) {
+  return (
+    <article
+      className="bg-card border border-border rounded-lg p-4 mb-3"
+      data-testid="match-card"
+      data-match-id={match.id}
+    >
+      <div className="flex justify-between items-center mb-3">
+        <span className="text-xs font-semibold text-muted-foreground">
+          {match.groupLabel ?? ""}
+        </span>
+        <MatchDetailLink matchId={match.id} />
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <TeamButton
+          name={match.homeName}
+          code={match.homeCode}
+          align="left"
+          onPress={() => onTeamPress(match.homeCode, match.homeName)}
+        />
+        <span className="text-xs text-muted-foreground shrink-0">vs</span>
+        <TeamButton
+          name={match.awayName}
+          code={match.awayCode}
+          align="right"
+          onPress={() => onTeamPress(match.awayCode, match.awayName)}
+        />
+      </div>
+      <p
+        className="mt-3 text-center text-xs text-muted-foreground"
+        data-testid="tbd-banner"
+      >
+        Equipos por confirmar
+      </p>
+    </article>
+  );
+}
+
 /** In-progress match — live score */
 function LiveMatchCard({
   match,
@@ -630,6 +681,16 @@ function TodayPage() {
                   if (m.locked) {
                     return (
                       <LockedMatchCard
+                        key={m.id}
+                        match={m}
+                        onTeamPress={handleTeamPress}
+                      />
+                    );
+                  }
+                  if (!m.predictable) {
+                    // TBD match (teams not confirmed) — no steppers, show banner.
+                    return (
+                      <TbdMatchCard
                         key={m.id}
                         match={m}
                         onTeamPress={handleTeamPress}
