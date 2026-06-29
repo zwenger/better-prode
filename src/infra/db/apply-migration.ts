@@ -8,11 +8,16 @@
  * apply identical SQL.
  *
  * Behaviour:
- *  - Strips single-line `--` comments.
- *  - Splits on `;` and executes each non-empty statement in order.
- *  - This naturally handles PRAGMA lines and multi-statement table rebuilds
- *    (e.g. migration 0005, which wraps a CREATE/INSERT/DROP/RENAME sequence in
- *    PRAGMA foreign_keys=OFF/ON).
+ *  - Delegates the whole script to `client.executeMultiple(sql)`.
+ *  - `executeMultiple` runs the entire script as ONE session on a SINGLE
+ *    stream (HTTP transport pipelines via `stream.sequence`), so connection
+ *    state set by `PRAGMA` lines and transaction control (`BEGIN`/`COMMIT`)
+ *    PERSISTS across the statements in the file.
+ *  - This matters for migration 0005, whose table rebuild must run with
+ *    `PRAGMA foreign_keys=OFF` in effect for the DROP + RENAME. A previous
+ *    per-statement `;`-splitter executed each statement on its OWN stream over
+ *    HTTP (Turso), so the OFF pragma did not survive to the DROP and FK
+ *    enforcement would have failed the rebuild against prod.
  */
 
 import { readFileSync } from 'node:fs'
@@ -20,29 +25,16 @@ import type { Client } from '@libsql/client'
 
 /**
  * Applies a SQL migration string against the given libSQL client.
- * Strips single-line comments, then splits on semicolons and executes
- * each statement sequentially.
+ *
+ * Runs the whole script via {@link Client.executeMultiple}, which executes it
+ * as a single session on one stream so that PRAGMA and transaction state
+ * persist across statements.
  */
 export async function applyMigrationSql(
   client: Client,
   sql: string,
 ): Promise<void> {
-  const withoutComments = sql
-    .split('\n')
-    .map((line) => {
-      const commentIdx = line.indexOf('--')
-      return commentIdx >= 0 ? line.slice(0, commentIdx) : line
-    })
-    .join('\n')
-
-  const statements = withoutComments
-    .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
-
-  for (const stmt of statements) {
-    await client.execute(stmt)
-  }
+  await client.executeMultiple(sql)
 }
 
 /**
