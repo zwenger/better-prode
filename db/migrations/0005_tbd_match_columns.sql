@@ -12,6 +12,7 @@
 -- group_label, stage_id
 
 PRAGMA foreign_keys=OFF;
+BEGIN;
 
 CREATE TABLE match_new (
   id TEXT PRIMARY KEY,
@@ -41,4 +42,5 @@ ALTER TABLE match_new RENAME TO match;
 CREATE INDEX idx_match_kickoff ON match(kickoff_utc);
 CREATE INDEX idx_match_status ON match(status);
 
+COMMIT;
 PRAGMA foreign_keys=ON;
