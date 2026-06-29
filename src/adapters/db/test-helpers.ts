@@ -6,39 +6,26 @@
  * a clean slate.
  */
 
-import { createClient } from "@libsql/client";
-import type { Client } from "@libsql/client";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { createDrizzleDb } from "#/infra/db/client";
-import type { DrizzleDb } from "#/infra/db/client";
+import { createClient } from '@libsql/client'
+import type { Client } from '@libsql/client'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { createDrizzleDb } from '#/infra/db/client'
+import type { DrizzleDb } from '#/infra/db/client'
+import { applyMigrationFile } from '#/infra/db/apply-migration'
 
-const __dirname = fileURLToPath(new URL(".", import.meta.url));
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
 /**
  * Runs a SQL migration file against the given libSQL client.
- * Strips single-line comments then splits on semicolons.
+ * Delegates to the shared {@link applyMigrationFile} so tests and prod
+ * apply migrations identically.
  */
-async function runMigrationFile(client: Client, filePath: string): Promise<void> {
-  const sql = readFileSync(filePath, "utf8");
-
-  const withoutComments = sql
-    .split("\n")
-    .map((line) => {
-      const commentIdx = line.indexOf("--");
-      return commentIdx >= 0 ? line.slice(0, commentIdx) : line;
-    })
-    .join("\n");
-
-  const statements = withoutComments
-    .split(";")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-
-  for (const stmt of statements) {
-    await client.execute(stmt);
-  }
+async function runMigrationFile(
+  client: Client,
+  filePath: string,
+): Promise<void> {
+  await applyMigrationFile(client, filePath)
 }
 
 /**
@@ -47,21 +34,33 @@ async function runMigrationFile(client: Client, filePath: string): Promise<void>
  * Call this in beforeEach to get a clean DB for each test.
  */
 export async function createTestDb(): Promise<DrizzleDb & { $client: Client }> {
-  const client = createClient({ url: ":memory:" });
+  const client = createClient({ url: ':memory:' })
 
-  const migrationsDir = join(__dirname, "../../../db/migrations");
-  await runMigrationFile(client, join(migrationsDir, "0001_init.sql"));
-  await runMigrationFile(client, join(migrationsDir, "0002_better_auth_tables.sql"));
-  await runMigrationFile(client, join(migrationsDir, "0003_match_group_stage.sql"));
-  await runMigrationFile(client, join(migrationsDir, "0004_push_subscriptions.sql"));
-  await runMigrationFile(client, join(migrationsDir, "0005_tbd_match_columns.sql"));
+  const migrationsDir = join(__dirname, '../../../db/migrations')
+  await runMigrationFile(client, join(migrationsDir, '0001_init.sql'))
+  await runMigrationFile(
+    client,
+    join(migrationsDir, '0002_better_auth_tables.sql'),
+  )
+  await runMigrationFile(
+    client,
+    join(migrationsDir, '0003_match_group_stage.sql'),
+  )
+  await runMigrationFile(
+    client,
+    join(migrationsDir, '0004_push_subscriptions.sql'),
+  )
+  await runMigrationFile(
+    client,
+    join(migrationsDir, '0005_tbd_match_columns.sql'),
+  )
 
-  const db = createDrizzleDb(client);
+  const db = createDrizzleDb(client)
   // Expose the underlying client for test fixtures that use raw SQL inserts.
-  return Object.assign(db, { $client: client });
+  return Object.assign(db, { $client: client })
 }
 
 /** Generate a test ID (deterministic for readability). */
 export function testId(label: string): string {
-  return `test-${label}-${Date.now()}`;
+  return `test-${label}-${Date.now()}`
 }

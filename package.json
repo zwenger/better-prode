@@ -23,7 +23,7 @@
     "format": "prettier --write . && eslint --fix",
     "check": "prettier --check .",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "tsx scripts/db-migrate.ts",
     "db:seed": "node scripts/db-seed.js",
     "deploy": "npm run build && wrangler deploy",
     "import:tournament": "tsx scripts/import-tournament.ts"
