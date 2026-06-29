@@ -86,6 +86,8 @@ const getMatches = createServerFn({ method: "GET" }).handler(
         groupLabel: matchTable.groupLabel,
         homeTeamId: matchTable.homeTeamId,
         awayTeamId: matchTable.awayTeamId,
+        homePlaceholder: matchTable.homePlaceholder,
+        awayPlaceholder: matchTable.awayPlaceholder,
       })
       .from(matchTable)
       .leftJoin(home, eq(matchTable.homeTeamId, home.id))
@@ -631,7 +633,8 @@ function MatchListPage() {
   }, []);
 
   const predictable = useMemo(
-    () => matches.filter((m) => m.status === "scheduled" && !m.locked),
+    // Spec: TBD matches (predictable=false) must be excluded from "Para predecir"
+    () => matches.filter((m) => m.status === "scheduled" && !m.locked && m.predictable),
     [matches]
   );
   const locked = useMemo(

@@ -10,6 +10,7 @@
  */
 
 import { isLocked } from "#/domain/lock";
+import { decodePlaceholder } from "#/domain/decode-placeholder";
 
 /**
  * W-2 fix: format a UTC ISO kickoff string for display with a timezone label.
@@ -87,6 +88,8 @@ export interface MatchListItem {
   awayScore: number | null;
   groupLabel: string | null;
   locked: boolean;
+  /** True when both home and away team IDs are concrete (non-null). */
+  predictable: boolean;
   /** Hydrated from DB on load — null when the user has no prediction yet. */
   userPrediction: UserPrediction | null;
 }
@@ -97,8 +100,10 @@ interface RawMatchRow {
   homeCode: string | null;
   awayName: string | null;
   awayCode: string | null;
-  homeTeamId: string;
-  awayTeamId: string;
+  homeTeamId: string | null;
+  awayTeamId: string | null;
+  homePlaceholder: string | null;
+  awayPlaceholder: string | null;
   kickoffUtc: string;
   status: string;
   homeScore: number | null;
@@ -121,9 +126,13 @@ export function shapeMatchRows(
   const clock = { now: () => now };
   return rows.map((row) => ({
     id: row.id,
-    homeName: row.homeName ?? row.homeTeamId,
+    // Name resolution: team join name → decoded placeholder → "Por confirmar"
+    // The ?? chain ends in decodePlaceholder (guaranteed non-null string)
+    // because homeTeamId is now string|null — using it as a fallback would
+    // leak a null into the homeName field.
+    homeName: row.homeName ?? decodePlaceholder(row.homePlaceholder),
     homeCode: row.homeCode,
-    awayName: row.awayName ?? row.awayTeamId,
+    awayName: row.awayName ?? decodePlaceholder(row.awayPlaceholder),
     awayCode: row.awayCode,
     kickoffUtc: row.kickoffUtc,
     status: row.status,
@@ -131,6 +140,7 @@ export function shapeMatchRows(
     awayScore: row.awayScore,
     groupLabel: row.groupLabel,
     locked: isLocked(row.kickoffUtc, clock),
+    predictable: row.homeTeamId != null && row.awayTeamId != null,
     userPrediction: predMap.get(row.id) ?? null,
   }));
 }

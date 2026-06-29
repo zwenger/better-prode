@@ -40,6 +40,7 @@ import { DrizzleMatchRepository } from "#/adapters/db/match-repository";
 import type { TeamMatchRow } from "#/adapters/db/match-repository";
 import { isLocked } from "#/domain/lock";
 import { SystemClock } from "#/domain/ports/clock";
+import { decodePlaceholder } from "#/domain/decode-placeholder";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -58,6 +59,8 @@ interface MatchDetail {
   groupLabel: string | null;
   settledAt: string | null;
   resultSource: string | null;
+  /** True when both home and away team IDs are confirmed (non-null). */
+  predictable: boolean;
 }
 
 interface UserPrediction {
@@ -152,6 +155,8 @@ const getMatchDetail = createServerFn({ method: "GET" })
         resultSource: matchTable.resultSource,
         homeTeamId: matchTable.homeTeamId,
         awayTeamId: matchTable.awayTeamId,
+        homePlaceholder: matchTable.homePlaceholder,
+        awayPlaceholder: matchTable.awayPlaceholder,
       })
       .from(matchTable)
       .leftJoin(home, eq(matchTable.homeTeamId, home.id))
@@ -167,9 +172,10 @@ const getMatchDetail = createServerFn({ method: "GET" })
 
     const matchRecord: MatchDetail = {
       id: row.id,
-      homeName: row.homeName ?? row.homeTeamId,
+      // Name resolution: team join name → decoded placeholder → "Por confirmar"
+      homeName: row.homeName ?? decodePlaceholder(row.homePlaceholder),
       homeCode: row.homeCode,
-      awayName: row.awayName ?? row.awayTeamId,
+      awayName: row.awayName ?? decodePlaceholder(row.awayPlaceholder),
       awayCode: row.awayCode,
       kickoffUtc: row.kickoffUtc,
       status: row.status,
@@ -178,6 +184,7 @@ const getMatchDetail = createServerFn({ method: "GET" })
       groupLabel: row.groupLabel,
       settledAt: row.settledAt,
       resultSource: row.resultSource,
+      predictable: row.homeTeamId != null && row.awayTeamId != null,
     };
 
     // --- Lazy on-demand settlement trigger (spec: result-triggering) ---

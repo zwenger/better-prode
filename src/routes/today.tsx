@@ -96,6 +96,8 @@ const getTodayMatches = createServerFn({ method: "GET" }).handler(
         groupLabel: matchTable.groupLabel,
         homeTeamId: matchTable.homeTeamId,
         awayTeamId: matchTable.awayTeamId,
+        homePlaceholder: matchTable.homePlaceholder,
+        awayPlaceholder: matchTable.awayPlaceholder,
       })
       .from(matchTable)
       .leftJoin(home, eq(matchTable.homeTeamId, home.id))
