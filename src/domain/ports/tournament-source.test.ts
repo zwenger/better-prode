@@ -39,6 +39,8 @@ describe("TournamentSource port — type contract", () => {
       id: "fifa-m-400021443",
       homeTeamId: "fifa-t-43911",
       awayTeamId: "fifa-t-43883",
+      homePlaceholder: null,
+      awayPlaceholder: null,
       kickoffUtc: "2026-06-11T19:00:00.000Z",
       status: "finished",
       homeScore: 2,
@@ -55,6 +57,8 @@ describe("TournamentSource port — type contract", () => {
       id: "fifa-m-400021473",
       homeTeamId: "fifa-t-43888",
       awayTeamId: "fifa-t-43960",
+      homePlaceholder: null,
+      awayPlaceholder: null,
       kickoffUtc: "2026-06-25T23:00:00.000Z",
       status: "scheduled",
       homeScore: null,
@@ -64,6 +68,26 @@ describe("TournamentSource port — type contract", () => {
     };
     expect(match.homeScore).toBeNull();
     expect(match.awayScore).toBeNull();
+  });
+
+  it("TournamentMatch teamIds can be null for TBD knockout matches", () => {
+    const match: TournamentMatch = {
+      id: "fifa-m-400021999",
+      homeTeamId: null,
+      awayTeamId: null,
+      homePlaceholder: "W74",
+      awayPlaceholder: "RU101",
+      kickoffUtc: "2026-07-01T20:00:00.000Z",
+      status: "scheduled",
+      homeScore: null,
+      awayScore: null,
+      group: "",
+      stage: "289274",
+    };
+    expect(match.homeTeamId).toBeNull();
+    expect(match.awayTeamId).toBeNull();
+    expect(match.homePlaceholder).toBe("W74");
+    expect(match.awayPlaceholder).toBe("RU101");
   });
 
   it("TournamentStructure bundles tournamentId, name, teams[], and matches[]", () => {

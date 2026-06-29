@@ -37,10 +37,8 @@ export const match = sqliteTable(
       .notNull()
       .references(() => tournament.id),
     homeTeamId: text("home_team_id")
-      .notNull()
       .references(() => team.id),
     awayTeamId: text("away_team_id")
-      .notNull()
       .references(() => team.id),
     kickoffUtc: text("kickoff_utc").notNull(),
     status: text("status", { enum: ["scheduled", "in_progress", "finished"] }).notNull(),
@@ -50,6 +48,8 @@ export const match = sqliteTable(
     settledAt: text("settled_at"),
     groupLabel: text("group_label"),
     stageId: text("stage_id"),
+    homePlaceholder: text("home_placeholder"),
+    awayPlaceholder: text("away_placeholder"),
     createdAt: text("created_at").notNull(),
   },
   (t) => [
