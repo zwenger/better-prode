@@ -12,13 +12,13 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { MatchDetailPredictionArea } from "../-match-detail-prediction-area";
 
-// Mock server fns that pull in infra at module load time
+// Mock server fns that pull in infra at module load time. vitest hoists vi.mock
+// above the imports at transform time, so the mock still applies to the import above.
 vi.mock("#/routes/api/predictions/-submit", () => ({
   submitPrediction: vi.fn(),
 }));
-
-import { MatchDetailPredictionArea } from "../-match-detail-prediction-area";
 
 describe("MatchDetailPredictionArea — TBD match (predictable=false)", () => {
   it("renders the 'Equipos por confirmar' banner", () => {

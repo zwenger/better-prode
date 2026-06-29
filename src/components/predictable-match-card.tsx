@@ -116,7 +116,7 @@ export function PredictableMatchCard({
   onSave,
   submitting: submittingProp,
   locked: lockedProp = false,
-  predictable = match.predictable ?? true,
+  predictable = match.predictable,
   onTeamPress,
   // userId is accepted for future use (e.g. redirect on unauthenticated submit)
   // but the server fn itself enforces auth — no client-side redirect needed here.
