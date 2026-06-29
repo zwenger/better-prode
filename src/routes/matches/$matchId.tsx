@@ -17,7 +17,6 @@ import { AppShell } from "#/components/app-shell";
 import { createServerFn } from "@tanstack/react-start";
 import { eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
-import { useState } from "react";
 import { getDb } from "#/infra/db/client";
 import {
   match as matchTable,
@@ -33,7 +32,6 @@ import type { DispatchableMatch, DoDispatcher } from "./-match-lazy-trigger";
 import { dispatchIfUnsettled } from "./-match-lazy-trigger";
 import type { SettleCommand } from "#/workers/match-do";
 import { TeamFlag } from "#/components/team-flag";
-import { ScoreStepper } from "#/components/score-stepper";
 import { formatKickoffUtc } from "#/routes/matches/-match-list-loader";
 import { DrizzleGroupRepository } from "#/adapters/db/group-repository";
 import { DrizzleMatchRepository } from "#/adapters/db/match-repository";
@@ -41,6 +39,7 @@ import type { TeamMatchRow } from "#/adapters/db/match-repository";
 import { isLocked } from "#/domain/lock";
 import { SystemClock } from "#/domain/ports/clock";
 import { decodePlaceholder } from "#/domain/decode-placeholder";
+import { MatchDetailPredictionArea } from "./-match-detail-prediction-area";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -317,7 +316,7 @@ function StatusBadge({ status }: { status: string }) {
   return null;
 }
 
-/** Points pill — gold for a pleno (7), green when scoring, red on a miss. */
+/** Points pill — used for group-members prediction list. */
 function PointsBadge({ points }: { points: number }) {
   const pleno = points === 7;
   const style: React.CSSProperties = pleno
@@ -375,96 +374,6 @@ function FormRow({
   );
 }
 
-/** Editable prediction for an open match — reuses ScoreStepper + submitPrediction. */
-function PredictionEditor({
-  matchId,
-  initialHome,
-  initialAway,
-}: {
-  matchId: string;
-  initialHome: number;
-  initialAway: number;
-}) {
-  const [homeGoals, setHomeGoals] = useState(initialHome);
-  const [awayGoals, setAwayGoals] = useState(initialAway);
-  const [state, setState] = useState<"idle" | "saving" | "saved" | "locked" | "error">("idle");
-
-  const handleSave = async () => {
-    setState("saving");
-    try {
-      const { submitPrediction } = await import("#/routes/api/predictions/-submit");
-      await submitPrediction({ data: { matchId, homeGoals, awayGoals } });
-      setState("saved");
-      setTimeout(() => setState("idle"), 1500);
-    } catch (err) {
-      const status = (err as { status?: number }).status;
-      setState(status === 422 ? "locked" : "error");
-    }
-  };
-
-  return (
-    <div className="border rounded-2xl p-4 space-y-3" data-testid="prediction-editor">
-      <h2 className="text-sm font-semibold text-muted-foreground">Tu predicción</h2>
-      <div className="flex items-center justify-center gap-4">
-        <ScoreStepper value={homeGoals} onChange={setHomeGoals} label="home goals" />
-        <span className="text-xl font-bold text-muted-foreground font-score">:</span>
-        <ScoreStepper value={awayGoals} onChange={setAwayGoals} label="away goals" />
-      </div>
-      <button
-        type="button"
-        onClick={handleSave}
-        disabled={state === "saving" || state === "saved"}
-        aria-live="polite"
-        className={[
-          "w-full py-3 rounded-xl text-sm font-semibold select-none",
-          "transition-[background-color,transform,box-shadow] duration-200 ease-out",
-          "active:scale-[0.98] disabled:active:scale-100",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
-          state === "saved"
-            ? "bg-pitch-green text-surface shadow-lifted"
-            : "bg-primary text-primary-foreground hover:bg-pitch-green-deep disabled:opacity-50",
-        ].join(" ")}
-        data-testid="save-prediction"
-      >
-        <span className="inline-flex items-center justify-center gap-1.5">
-          {state === "saving"
-            ? "Guardando…"
-            : state === "saved"
-              ? "¡Guardado!"
-              : "Guardar predicción"}
-          {state === "saved" && (
-            <svg
-              className="h-4 w-4 motion-safe:animate-[check-pop_220ms_ease-out]"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={3}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M5 13l4 4L19 7" />
-            </svg>
-          )}
-        </span>
-      </button>
-      {state === "locked" && (
-        <p className="text-xs text-center text-muted-foreground" data-testid="prediction-locked">
-          El partido ya está cerrado.
-        </p>
-      )}
-      {state === "error" && (
-        <p className="text-xs text-center" style={{ color: "var(--miss-red-ink)" }}>
-          No se pudo guardar. Intentá de nuevo.
-        </p>
-      )}
-      <p className="text-[11px] text-center text-muted-foreground">
-        Se cierra 5 minutos antes del inicio
-      </p>
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -502,32 +411,14 @@ function MatchDetailPage() {
           </div>
         </div>
 
-        {/* Prediction: editable when open, otherwise read-only / result */}
-        {isOpen ? (
-          <PredictionEditor
-            matchId={match.id}
-            initialHome={prediction?.homeGoals ?? 0}
-            initialAway={prediction?.awayGoals ?? 0}
-          />
-        ) : prediction ? (
-          <div className="border rounded-2xl p-4" data-testid="user-prediction">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-muted-foreground">Tu predicción</h2>
-              {isFinished && prediction.points !== null && (
-                <PointsBadge points={prediction.points} />
-              )}
-            </div>
-            <div className="mt-2 text-xl font-bold tabular-nums font-score">
-              {prediction.homeGoals} : {prediction.awayGoals}
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            {match.status === "scheduled"
-              ? "El partido está cerrado y no hiciste una predicción."
-              : "No hiciste una predicción para este partido."}
-          </p>
-        )}
+        {/* Prediction: editable when open, TBD banner, or read-only result */}
+        <MatchDetailPredictionArea
+          matchId={match.id}
+          predictable={match.predictable}
+          isOpen={isOpen}
+          prediction={prediction}
+          isFinished={isFinished}
+        />
 
         {/* Group members' predictions (revealed after lock) */}
         {locked && groupPredictions.length > 0 && (
