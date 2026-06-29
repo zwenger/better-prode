@@ -16,12 +16,12 @@ Thank you for taking the time to contribute. This document covers everything you
 
 ### Prerequisites
 
-| Tool | Version | Notes |
-|------|---------|-------|
-| Node.js | 22+ | Use `.nvmrc` — run `nvm use` in the root |
-| npm | bundled with Node 22 | `npm ci` for reproducible installs |
-| Wrangler | bundled as dev dep | `npx wrangler` or `npm run deploy` |
-| Turso CLI | latest | `brew install tursodatabase/tap/turso` |
+| Tool      | Version              | Notes                                    |
+| --------- | -------------------- | ---------------------------------------- |
+| Node.js   | 22+                  | Use `.nvmrc` — run `nvm use` in the root |
+| npm       | bundled with Node 22 | `npm ci` for reproducible installs       |
+| Wrangler  | bundled as dev dep   | `npx wrangler` or `npm run deploy`       |
+| Turso CLI | latest               | `brew install tursodatabase/tap/turso`   |
 
 ### Setup
 
@@ -36,7 +36,7 @@ cp .dev.vars.example .dev.vars
 # Edit .dev.vars — see each variable's inline comment for where to get it.
 
 # 3. Set up the local database
-npm run db:migrate     # applies migrations to local.db (SQLite)
+npm run db:migrate     # applies pending db/migrations/*.sql, tracked by schema_migrations
 npm run db:seed        # seeds fixture data for development
 
 # 4. Start the dev server
@@ -54,11 +54,11 @@ This project enforces **Strict TDD**: write a failing test _before_ writing impl
 
 ### Test layers
 
-| Command | Runtime | What it covers |
-|---------|---------|----------------|
-| `npm test` | Node (Vitest) | Domain logic, adapters, utilities |
-| `npm run test:workers` | Cloudflare workerd (Vitest pool) | Durable Objects, KV bindings |
-| `npm run test:e2e` | Playwright | Full browser flows (requires a running app + real credentials) |
+| Command                | Runtime                          | What it covers                                                 |
+| ---------------------- | -------------------------------- | -------------------------------------------------------------- |
+| `npm test`             | Node (Vitest)                    | Domain logic, adapters, utilities                              |
+| `npm run test:workers` | Cloudflare workerd (Vitest pool) | Durable Objects, KV bindings                                   |
+| `npm run test:e2e`     | Playwright                       | Full browser flows (requires a running app + real credentials) |
 
 ### Coverage
 
@@ -84,16 +84,16 @@ This project follows [Conventional Commits](https://www.conventionalcommits.org/
 
 ### Types
 
-| Type | When to use |
-|------|-------------|
-| `feat` | New user-visible feature |
-| `fix` | Bug fix |
-| `chore` | Maintenance, deps, tooling |
+| Type       | When to use                        |
+| ---------- | ---------------------------------- |
+| `feat`     | New user-visible feature           |
+| `fix`      | Bug fix                            |
+| `chore`    | Maintenance, deps, tooling         |
 | `refactor` | Code change with no behavior delta |
-| `test` | Adding or improving tests |
-| `docs` | Documentation only |
-| `ci` | CI/CD pipeline changes |
-| `perf` | Performance improvement |
+| `test`     | Adding or improving tests          |
+| `docs`     | Documentation only                 |
+| `ci`       | CI/CD pipeline changes             |
+| `perf`     | Performance improvement            |
 
 **Do not** include `Co-Authored-By` AI attribution lines in commits.
 
