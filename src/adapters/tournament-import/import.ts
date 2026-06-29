@@ -116,6 +116,8 @@ export async function importTournament(
         tournamentId: structure.tournamentId,
         homeTeamId: m.homeTeamId,
         awayTeamId: m.awayTeamId,
+        homePlaceholder: m.homePlaceholder,
+        awayPlaceholder: m.awayPlaceholder,
         kickoffUtc: m.kickoffUtc,
         status: m.status,
         homeScore: m.homeScore,
@@ -131,6 +133,11 @@ export async function importTournament(
           kickoffUtc: sql`excluded.kickoff_utc`,
           homeTeamId: sql`excluded.home_team_id`,
           awayTeamId: sql`excluded.away_team_id`,
+          // Placeholder fields: updated on every import.
+          // When a team resolves, the import sets the real team ID and provides
+          // null for the placeholder — clearing it in the same write.
+          homePlaceholder: sql`excluded.home_placeholder`,
+          awayPlaceholder: sql`excluded.away_placeholder`,
           groupLabel: sql`excluded.group_label`,
           stageId: sql`excluded.stage_id`,
           // Result fields intentionally OMITTED:

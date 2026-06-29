@@ -170,6 +170,72 @@ describe("FifaAdapter — domain mapping", () => {
     });
   });
 
+  describe("TBD matches — placeholder capture (spec: Adapter Parses TBD Matches)", () => {
+    it("both-TBD match: null teams + placeholder codes are captured (W74/RU101)", async () => {
+      const tbdFixture = {
+        IdMatch: "400099001",
+        IdCompetition: "17",
+        IdSeason: "285023",
+        IdStage: "289274",
+        Date: "2026-07-01T20:00:00Z",
+        MatchStatus: 1,
+        Home: null,
+        Away: null,
+        PlaceHolderA: "W74",
+        PlaceHolderB: "RU101",
+      };
+      const adapter = adapterWithFixture(tbdFixture);
+      const { matches } = await adapter.fetchStructure("17", "285023");
+      expect(matches).toHaveLength(1);
+      expect(matches[0].homeTeamId).toBeNull();
+      expect(matches[0].awayTeamId).toBeNull();
+      expect(matches[0].homePlaceholder).toBe("W74");
+      expect(matches[0].awayPlaceholder).toBe("RU101");
+    });
+
+    it("partial match: one concrete team + one placeholder", async () => {
+      const partialFixture = {
+        IdMatch: "400099002",
+        IdCompetition: "17",
+        IdSeason: "285023",
+        IdStage: "289274",
+        Date: "2026-07-02T20:00:00Z",
+        MatchStatus: 1,
+        Home: {
+          IdTeam: "43911",
+          TeamName: [{ Locale: "en-GB", Description: "Canada" }],
+        },
+        Away: null,
+        PlaceHolderB: "W75",
+      };
+      const adapter = adapterWithFixture(partialFixture);
+      const { matches } = await adapter.fetchStructure("17", "285023");
+      expect(matches).toHaveLength(1);
+      expect(matches[0].homeTeamId).toBe("fifa-t-43911");
+      expect(matches[0].awayTeamId).toBeNull();
+      expect(matches[0].homePlaceholder).toBeNull();
+      expect(matches[0].awayPlaceholder).toBe("W75");
+    });
+
+    it("true-null-both-sides (no team AND no placeholder): match is skipped", async () => {
+      const nullFixture = {
+        IdMatch: "400099003",
+        IdCompetition: "17",
+        IdSeason: "285023",
+        IdStage: "289274",
+        Date: "2026-07-03T20:00:00Z",
+        MatchStatus: 1,
+        Home: null,
+        Away: null,
+        // No PlaceHolderA, no PlaceHolderB
+      };
+      const adapter = adapterWithFixture(nullFixture);
+      const { matches } = await adapter.fetchStructure("17", "285023");
+      // Both sides have no team AND no placeholder — skip
+      expect(matches).toHaveLength(0);
+    });
+  });
+
   describe("unknown MatchStatus → safe default", () => {
     it("maps unknown status code to 'scheduled' with warned: true in mapStatus", async () => {
       // Build a fixture with an unknown status code (e.g. 99)
