@@ -61,6 +61,12 @@ export interface PredictableMatchCardProps {
   /** Server-confirmed lock state (422 throw from submitPredictionCore). */
   locked?: boolean;
   onTeamPress: (code: string | null, name: string) => void;
+  /**
+   * When false (TBD match), hides the score steppers and save button entirely.
+   * Defaults to true for backward-compatibility with callers that don't pass it.
+   * Loader owns this derived flag (homeTeamId != null && awayTeamId != null).
+   */
+  predictable?: boolean;
   /** userId — used to redirect unauthenticated users to "/" */
   userId?: string | null;
   /** The current user's group IDs — enables the "Ver predicciones del grupo" drawer once locked. */
@@ -110,6 +116,7 @@ export function PredictableMatchCard({
   onSave,
   submitting: submittingProp,
   locked: lockedProp = false,
+  predictable = match.predictable ?? true,
   onTeamPress,
   // userId is accepted for future use (e.g. redirect on unauthenticated submit)
   // but the server fn itself enforces auth — no client-side redirect needed here.
@@ -262,25 +269,27 @@ export function PredictableMatchCard({
         />
       </div>
 
-      {/* Score steppers */}
-      <div className="flex items-center justify-center gap-3 mb-3">
-        <ScoreStepper
-          value={homeGoals}
-          onChange={handleHomeChange}
-          disabled={isLocked || isSubmitting}
-          label="home goals"
-        />
-        <span className="text-xl font-bold text-foreground font-score">:</span>
-        <ScoreStepper
-          value={awayGoals}
-          onChange={handleAwayChange}
-          disabled={isLocked || isSubmitting}
-          label="away goals"
-        />
-      </div>
+      {/* Score steppers — hidden for TBD matches */}
+      {predictable && (
+        <div className="flex items-center justify-center gap-3 mb-3">
+          <ScoreStepper
+            value={homeGoals}
+            onChange={handleHomeChange}
+            disabled={isLocked || isSubmitting}
+            label="home goals"
+          />
+          <span className="text-xl font-bold text-foreground font-score">:</span>
+          <ScoreStepper
+            value={awayGoals}
+            onChange={handleAwayChange}
+            disabled={isLocked || isSubmitting}
+            label="away goals"
+          />
+        </div>
+      )}
 
-      {/* Submit / status area */}
-      {isLocked ? (
+      {/* Submit / status area — hidden for TBD matches */}
+      {!predictable ? null : isLocked ? (
         <p
           className="mt-2 text-sm text-center text-muted-foreground"
           data-testid="prediction-locked"
