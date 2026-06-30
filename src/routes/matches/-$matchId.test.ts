@@ -57,6 +57,35 @@ describe("dispatchIfUnsettled — lazy trigger domain helper", () => {
     });
   });
 
+  it("forwards non-null penalty fields through the SettlePayload", async () => {
+    const dispatch = vi.fn().mockResolvedValue(undefined);
+    const dispatcher: DoDispatcher = { settle: dispatch };
+
+    const match = makeMatch({
+      status: "finished",
+      settledAt: null,
+      homeScore: 1,
+      awayScore: 1,
+      homePenaltyScore: 4,
+      awayPenaltyScore: 2,
+      winnerTeamId: "fifa-t-43911",
+    });
+
+    const result = await dispatchIfUnsettled(match, dispatcher);
+
+    expect(result.dispatched).toBe(true);
+    expect(dispatch).toHaveBeenCalledWith({
+      matchId: "match-1",
+      homeScore: 1,
+      awayScore: 1,
+      status: "finished",
+      source: "auto",
+      homePenaltyScore: 4,
+      awayPenaltyScore: 2,
+      winnerTeamId: "fifa-t-43911",
+    });
+  });
+
   it("does NOT dispatch when match is already settled (second viewer no-op)", async () => {
     const dispatch = vi.fn();
     const dispatcher: DoDispatcher = { settle: dispatch };

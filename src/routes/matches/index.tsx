@@ -158,7 +158,7 @@ function getOutcome(g: GoalCount): "home" | "draw" | "away" {
 // ScoreBreakdown (adapted from today.tsx — for FinishedMatchCard)
 // ---------------------------------------------------------------------------
 
-function ResultOnlyRow({ match }: { match: MatchListItem }) {
+export function ResultOnlyRow({ match }: { match: MatchListItem }) {
   return (
     <div className="rounded-xl px-3 py-3 bg-surface-subtle mb-2 flex flex-col gap-1">
       <div className="flex items-center gap-3">
