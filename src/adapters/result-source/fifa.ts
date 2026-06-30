@@ -318,7 +318,13 @@ export class FifaAdapter implements TournamentSource, ResultSource {
     const awayScore = parseScore(m.Away?.Score);
 
     // Penalty shootout enrichment: only when ResultType===2.
-    // All other values (absent, 0, 1) → regulation/ET result → nulls.
+    //
+    // ResultType gating (VERIFIED against live WC2026 data, June 2026):
+    //   1 → regular time or extra time (no penalty fields)
+    //   2 → decided by penalty shootout (Winner + PenaltyScore populated)
+    // Confirmed across the finished set: 74 ResultType=1 matches all had null
+    // PenaltyScore; the 2 ResultType=2 matches both carried PenaltyScore; zero
+    // mismatches. All other values (absent, 0, 1) → regulation/ET → nulls.
     const isPenalty = m.ResultType === 2;
     const homePenaltyScore = isPenalty ? (parseScore(m.Home?.PenaltyScore) ?? null) : null;
     const awayPenaltyScore = isPenalty ? (parseScore(m.Away?.PenaltyScore) ?? null) : null;

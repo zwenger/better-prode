@@ -18,6 +18,7 @@ import {
   formatKickoffUtc,
   formatKickoffShort,
   isPredictableTabMatch,
+  resolvePenaltyWinnerName,
 } from "./-match-list-loader";
 
 const FUTURE_STR = "2026-07-15T20:00:00.000Z"; // well in future → unlocked
@@ -333,6 +334,66 @@ describe("shapeMatchRows — penalty shootout fields", () => {
     const rows = [makeRow({ status: "finished", homeScore: 2, awayScore: 0 })];
     const result = shapeMatchRows(rows, new Map(), fixedNow);
     expect(result[0].penaltyWinnerName).toBeNull();
+  });
+
+  it("sets penaltyWinnerName to null when winnerTeamId matches NEITHER team (defensive)", () => {
+    // Defensive contract: a winnerTeamId that resolves to neither home nor away
+    // must NOT leak a team name — it resolves to null.
+    const rows = [
+      makeRow({
+        status: "finished",
+        homeScore: 1,
+        awayScore: 1,
+        homeName: "Mexico",
+        awayName: "South Africa",
+        homeTeamId: "fifa-t-43911",
+        awayTeamId: "fifa-t-43883",
+        homePenaltyScore: 4,
+        awayPenaltyScore: 2,
+        winnerTeamId: "fifa-t-99999", // matches neither side
+      }),
+    ];
+    const result = shapeMatchRows(rows, new Map(), fixedNow);
+    expect(result[0].penaltyWinnerName).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolvePenaltyWinnerName — direct unit tests of the exported pure function.
+//
+// $matchId.tsx imports this function directly, so its contract is exercised
+// here in isolation (not only via shapeMatchRows).
+// ---------------------------------------------------------------------------
+
+describe("resolvePenaltyWinnerName (direct)", () => {
+  it("returns null when winnerTeamId is null", () => {
+    expect(
+      resolvePenaltyWinnerName(null, "team-a", "team-b", "Argentina", "Brazil")
+    ).toBeNull();
+  });
+
+  it("returns the home name when winnerTeamId matches homeTeamId", () => {
+    expect(
+      resolvePenaltyWinnerName("team-a", "team-a", "team-b", "Argentina", "Brazil")
+    ).toBe("Argentina");
+  });
+
+  it("returns the away name when winnerTeamId matches awayTeamId", () => {
+    expect(
+      resolvePenaltyWinnerName("team-b", "team-a", "team-b", "Argentina", "Brazil")
+    ).toBe("Brazil");
+  });
+
+  it("returns null when winnerTeamId matches NEITHER team (defensive contract)", () => {
+    expect(
+      resolvePenaltyWinnerName("team-x", "team-a", "team-b", "Argentina", "Brazil")
+    ).toBeNull();
+  });
+
+  it("returns null when both team ids are null even if winnerTeamId is set", () => {
+    expect(
+      resolvePenaltyWinnerName("team-a", null, null, "Argentina", "Brazil")
+    ).toBeNull();
   });
 });
 

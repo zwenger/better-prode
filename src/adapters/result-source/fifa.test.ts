@@ -428,6 +428,48 @@ describe("FifaAdapter — getResult penalty shootout (ResultType===2)", () => {
     expect(result!.awayPenaltyScore).toBeNull();
     expect(result!.winnerTeamId).toBeNull();
   });
+
+  it("parses penalty scores but leaves winnerTeamId null when Winner is absent (ResultType===2)", async () => {
+    // Defensive: ResultType says penalties, but the provider has not (yet)
+    // populated Winner. Penalty scores are still parsed; winner resolves to null.
+    const { Winner: _winner, ...noWinner } = penaltyMatchFixture;
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ Results: [noWinner] }),
+    });
+    const adapter = new FifaAdapter({ fetch: mockFetch as unknown as typeof fetch });
+
+    const result: MatchResult | null = await adapter.getResult("fifa-m-400021500");
+
+    expect(result).not.toBeNull();
+    expect(result!.winnerTeamId).toBeNull();
+    // Penalty scores are still parsed off Home/Away.
+    expect(result!.homePenaltyScore).toBe(4);
+    expect(result!.awayPenaltyScore).toBe(2);
+  });
+
+  it("leaves one penalty side null when that side's PenaltyScore is null (ResultType===2)", async () => {
+    // Defensive: one side's PenaltyScore is missing. That side resolves to null;
+    // the regulation scores are still returned.
+    const onePkMissing = {
+      ...penaltyMatchFixture,
+      Away: { ...penaltyMatchFixture.Away, PenaltyScore: null },
+    };
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ Results: [onePkMissing] }),
+    });
+    const adapter = new FifaAdapter({ fetch: mockFetch as unknown as typeof fetch });
+
+    const result: MatchResult | null = await adapter.getResult("fifa-m-400021500");
+
+    expect(result).not.toBeNull();
+    expect(result!.homePenaltyScore).toBe(4);
+    expect(result!.awayPenaltyScore).toBeNull();
+    // Regulation scores still returned.
+    expect(result!.homeScore).toBe(1);
+    expect(result!.awayScore).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------

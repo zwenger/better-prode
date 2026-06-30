@@ -351,6 +351,175 @@ describe("applyMatchResult — penalty shootout threading", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Penalty backfill after initial settlement (delayed FIFA penalty data)
+//
+// FIFA often populates Winner/ResultType=2/penalty scores with a DELAY after
+// the final whistle. With the lazy/cron path, a penalty match can settle first
+// as the regulation draw (penalty fields null, settledAt set). On a LATER poll
+// carrying the penalty data, the idempotency guard would NO-OP and the penalty
+// fields would NEVER be written.
+//
+// Fix: the no-op branch detects fresh penalty data the stored record lacks and
+// performs a TARGETED display-only update (penalty fields only) WITHOUT
+// re-running score() or invalidating the leaderboard cache (points are unchanged).
+// ---------------------------------------------------------------------------
+
+describe("applyMatchResult — penalty backfill after settlement", () => {
+  let clock: FakeClock;
+
+  beforeEach(() => {
+    clock = new FakeClock(NOW);
+  });
+
+  it("backfills penalty fields on an already-settled match when delayed penalty data arrives", async () => {
+    // Already settled as a 1-1 regulation draw, penalties still null in DB.
+    const match = makeMatch({
+      status: "finished",
+      homeScore: 1,
+      awayScore: 1,
+      resultSource: "auto",
+      settledAt: "2026-06-15T19:00:00.000Z",
+      homePenaltyScore: null,
+      awayPenaltyScore: null,
+      winnerTeamId: null,
+    });
+    const predictions = [makePrediction({ homeGoals: 0, awayGoals: 0 })];
+    let scoringCalls = 0;
+    const savedUpdates: Array<Partial<MatchRecord>> = [];
+    const ports: ApplyMatchResultPorts = {
+      matchRepository: {
+        getById: async (_id: string) => ({ ...match }),
+        updateResult: async (_id, update) => {
+          savedUpdates.push(update);
+        },
+      },
+      predictionRepository: {
+        listByMatch: async (_matchId: string) => {
+          // listByMatch is only reached on the scoring path — track to prove it is NOT called.
+          scoringCalls++;
+          return [...predictions];
+        },
+        updatePoints: async (predId, points) => {
+          const pred = predictions.find((p) => p.id === predId);
+          if (pred) pred.points = points;
+        },
+      },
+    };
+
+    await applyMatchResult(
+      {
+        matchId: "match-1",
+        homeScore: 1, // SAME regulation result
+        awayScore: 1,
+        status: "finished",
+        source: "auto",
+        homePenaltyScore: 4, // NEW penalty data
+        awayPenaltyScore: 2,
+        winnerTeamId: "fifa-t-43911",
+      },
+      ports,
+      clock
+    );
+
+    // A targeted display-only update was written with ONLY the penalty fields.
+    expect(savedUpdates).toHaveLength(1);
+    expect(savedUpdates[0]).toEqual({
+      homePenaltyScore: 4,
+      awayPenaltyScore: 2,
+      winnerTeamId: "fifa-t-43911",
+    });
+    // Scoring path was NOT taken — points are unchanged display-only data.
+    expect(scoringCalls).toBe(0);
+    expect(predictions[0].points).toBeNull();
+  });
+
+  it("does NOT invalidate the leaderboard cache on a penalty backfill (points unchanged)", async () => {
+    const match = makeMatch({
+      status: "finished",
+      homeScore: 1,
+      awayScore: 1,
+      resultSource: "auto",
+      settledAt: "2026-06-15T19:00:00.000Z",
+      homePenaltyScore: null,
+      awayPenaltyScore: null,
+      winnerTeamId: null,
+    });
+    const ports: ApplyMatchResultPorts = {
+      matchRepository: {
+        getById: async (_id: string) => ({ ...match }),
+        updateResult: async (_id, _update) => {},
+      },
+      predictionRepository: {
+        listByMatch: async (_matchId: string) => [],
+        updatePoints: async (_predId: string, _points: number) => {},
+      },
+    };
+    const cache = makeFakeCache();
+
+    await applyMatchResult(
+      {
+        matchId: "match-1",
+        homeScore: 1,
+        awayScore: 1,
+        status: "finished",
+        source: "auto",
+        homePenaltyScore: 4,
+        awayPenaltyScore: 2,
+        winnerTeamId: "fifa-t-43911",
+      },
+      ports,
+      clock,
+      { cache, listGroupIdsByTournament: async (_tid: string) => ["group-1"] }
+    );
+
+    expect(cache.invalidateCalls).toHaveLength(0);
+  });
+
+  it("true no-op — identical penalties already stored → no write", async () => {
+    const match = makeMatch({
+      status: "finished",
+      homeScore: 1,
+      awayScore: 1,
+      resultSource: "auto",
+      settledAt: "2026-06-15T19:00:00.000Z",
+      homePenaltyScore: 4,
+      awayPenaltyScore: 2,
+      winnerTeamId: "fifa-t-43911",
+    });
+    let updateCallCount = 0;
+    const ports: ApplyMatchResultPorts = {
+      matchRepository: {
+        getById: async (_id: string) => ({ ...match }),
+        updateResult: async (_id: string, _update: Partial<MatchRecord>) => {
+          updateCallCount++;
+        },
+      },
+      predictionRepository: {
+        listByMatch: async (_matchId: string) => [],
+        updatePoints: async (_predId: string, _points: number) => {},
+      },
+    };
+
+    await applyMatchResult(
+      {
+        matchId: "match-1",
+        homeScore: 1,
+        awayScore: 1,
+        status: "finished",
+        source: "auto",
+        homePenaltyScore: 4, // identical to stored
+        awayPenaltyScore: 2,
+        winnerTeamId: "fifa-t-43911",
+      },
+      ports,
+      clock
+    );
+
+    expect(updateCallCount).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Cache invalidation tests (W-1 fix)
 //
 // Spec (leaderboard): "The cache MUST be invalidated whenever applyMatchResult
