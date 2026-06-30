@@ -50,6 +50,11 @@ export interface SettleCommand {
   awayScore: number;
   status: "scheduled" | "in_progress" | "finished";
   source: "auto" | "manual";
+  /** Penalty shootout scores — present only for penalty-decided matches. */
+  homePenaltyScore?: number | null;
+  awayPenaltyScore?: number | null;
+  /** FIFA-prefixed team id of the penalty winner. Null for non-penalty matches. */
+  winnerTeamId?: string | null;
 }
 
 /**
@@ -489,6 +494,9 @@ export class MatchDO implements DurableObject {
           awayScore: command.awayScore,
           status: command.status,
           source: command.source,
+          homePenaltyScore: command.homePenaltyScore ?? null,
+          awayPenaltyScore: command.awayPenaltyScore ?? null,
+          winnerTeamId: command.winnerTeamId ?? null,
         },
         { matchRepository, predictionRepository },
         new SystemClock(),

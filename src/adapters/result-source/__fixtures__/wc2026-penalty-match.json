@@ -1,0 +1,50 @@
+{
+  "IdMatch": "400021500",
+  "IdCompetition": "17",
+  "IdSeason": "285023",
+  "IdStage": "289278",
+  "IdGroup": null,
+  "Date": "2026-07-05T20:00:00Z",
+  "MatchStatus": 0,
+  "MatchTime": "120'",
+  "ResultType": 2,
+  "Winner": "43911",
+  "StageName": [
+    {
+      "Locale": "en-GB",
+      "Description": "Round of 16"
+    }
+  ],
+  "SeasonName": [
+    {
+      "Locale": "en-GB",
+      "Description": "FIFA World Cup 2026™"
+    }
+  ],
+  "Home": {
+    "IdTeam": "43911",
+    "IdCountry": "MEX",
+    "TeamName": [
+      {
+        "Locale": "en-GB",
+        "Description": "Mexico"
+      }
+    ],
+    "Abbreviation": "MEX",
+    "Score": 1,
+    "PenaltyScore": 4
+  },
+  "Away": {
+    "IdTeam": "43883",
+    "IdCountry": "RSA",
+    "TeamName": [
+      {
+        "Locale": "en-GB",
+        "Description": "South Africa"
+      }
+    ],
+    "Abbreviation": "RSA",
+    "Score": 1,
+    "PenaltyScore": 2
+  }
+}

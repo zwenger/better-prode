@@ -13,14 +13,19 @@
 export interface MatchResult {
   /** Canonical match ID in our DB. */
   matchId: string;
-  /** Goals scored by the home team. */
+  /** Goals scored by the home team at regulation/ET end. */
   homeScore: number;
-  /** Goals scored by the away team. */
+  /** Goals scored by the away team at regulation/ET end. */
   awayScore: number;
   /** Normalized status — provider-specific values are mapped to this enum. */
   status: "scheduled" | "in_progress" | "finished";
   /** Who provided this result. */
   source: "auto" | "manual";
+  /** Penalty shootout scores — present only when ResultType===2 (penalty-decided). */
+  homePenaltyScore?: number | null;
+  awayPenaltyScore?: number | null;
+  /** FIFA-prefixed team id of the penalty winner. Null for non-penalty matches. */
+  winnerTeamId?: string | null;
 }
 
 /**

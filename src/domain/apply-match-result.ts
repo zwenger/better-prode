@@ -32,6 +32,11 @@ export interface MatchRecord {
   awayScore: number | null;
   resultSource: ResultSource | null;
   settledAt: string | null;
+  /** Penalty shootout scores — null for non-penalty matches. Display only; never fed to score(). */
+  homePenaltyScore: number | null;
+  awayPenaltyScore: number | null;
+  /** FIFA-prefixed team id for the penalty winner (e.g. "fifa-t-43928"). Null for non-penalty matches. */
+  winnerTeamId: string | null;
 }
 
 export interface PredictionRecord {
@@ -50,7 +55,17 @@ export interface MatchRepository {
   updateResult: (
     id: string,
     update: Partial<
-      Pick<MatchRecord, "homeScore" | "awayScore" | "resultSource" | "settledAt" | "status">
+      Pick<
+        MatchRecord,
+        | "homeScore"
+        | "awayScore"
+        | "resultSource"
+        | "settledAt"
+        | "status"
+        | "homePenaltyScore"
+        | "awayPenaltyScore"
+        | "winnerTeamId"
+      >
     >
   ) => Promise<void>;
 }
@@ -92,6 +107,11 @@ export interface ApplyMatchResultCommand {
   awayScore: number;
   status: MatchStatus;
   source: ResultSource;
+  /** Penalty shootout scores — present only for ResultType===2 matches. */
+  homePenaltyScore?: number | null;
+  awayPenaltyScore?: number | null;
+  /** FIFA-prefixed team id of the penalty winner. Null for non-penalty matches. */
+  winnerTeamId?: string | null;
 }
 
 /**
@@ -140,7 +160,8 @@ export async function applyMatchResult(
     return; // auto defers to manual pin
   }
 
-  // Persist result — update status and (for finished) score/settledAt
+  // Persist result — update status and (for finished) score/settledAt.
+  // Penalty fields are passed through when present (display-only; NEVER fed to score()).
   if (command.status === "finished") {
     await matchRepository.updateResult(command.matchId, {
       homeScore: command.homeScore,
@@ -148,6 +169,9 @@ export async function applyMatchResult(
       status: command.status,
       resultSource: command.source,
       settledAt: clock.now().toISOString(),
+      homePenaltyScore: command.homePenaltyScore ?? null,
+      awayPenaltyScore: command.awayPenaltyScore ?? null,
+      winnerTeamId: command.winnerTeamId ?? null,
     });
 
     // Compute and store final points for every prediction on this match.

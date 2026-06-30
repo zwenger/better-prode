@@ -45,6 +45,8 @@ interface FifaTeamSide {
   TeamName?: FifaLocalizedString[];
   Abbreviation?: string;
   Score?: number | null;
+  /** Penalty shootout goals for this side — present only when ResultType===2. */
+  PenaltyScore?: number | null;
 }
 
 interface FifaMatch {
@@ -65,6 +67,16 @@ interface FifaMatch {
   PlaceHolderA?: string;
   /** FIFA placeholder code for the away side (e.g. "RU101") — present for knockout TBD matches. */
   PlaceHolderB?: string;
+  /**
+   * Result type: 2 means decided by penalties.
+   * All other values (0, 1, absent) = regulation/ET result.
+   */
+  ResultType?: number;
+  /**
+   * FIFA raw team id of the penalty winner (no prefix — parseTeamId adds fifa-t-).
+   * Only present when ResultType===2.
+   */
+  Winner?: string;
 }
 
 interface FifaApiResponse {
@@ -305,12 +317,22 @@ export class FifaAdapter implements TournamentSource, ResultSource {
     const homeScore = parseScore(m.Home?.Score);
     const awayScore = parseScore(m.Away?.Score);
 
+    // Penalty shootout enrichment: only when ResultType===2.
+    // All other values (absent, 0, 1) → regulation/ET result → nulls.
+    const isPenalty = m.ResultType === 2;
+    const homePenaltyScore = isPenalty ? (parseScore(m.Home?.PenaltyScore) ?? null) : null;
+    const awayPenaltyScore = isPenalty ? (parseScore(m.Away?.PenaltyScore) ?? null) : null;
+    const winnerTeamId = isPenalty ? parseTeamId(m.Winner) : null;
+
     return {
       matchId,
       homeScore: homeScore ?? 0,
       awayScore: awayScore ?? 0,
       status,
       source: "auto",
+      homePenaltyScore,
+      awayPenaltyScore,
+      winnerTeamId,
     };
   }
 

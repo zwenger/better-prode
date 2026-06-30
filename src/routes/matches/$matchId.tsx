@@ -62,6 +62,11 @@ interface MatchDetail {
   resultSource: string | null;
   /** True when both home and away team IDs are confirmed (non-null). */
   predictable: boolean;
+  /** Penalty shootout scores — null for non-penalty matches. Display only. */
+  homePenaltyScore: number | null;
+  awayPenaltyScore: number | null;
+  /** FIFA-prefixed team id of the penalty winner. Null for non-penalty matches. */
+  winnerTeamId: string | null;
 }
 
 interface GroupPredEntry {
@@ -152,6 +157,9 @@ const getMatchDetail = createServerFn({ method: "GET" })
         awayTeamId: matchTable.awayTeamId,
         homePlaceholder: matchTable.homePlaceholder,
         awayPlaceholder: matchTable.awayPlaceholder,
+        homePenaltyScore: matchTable.homePenaltyScore,
+        awayPenaltyScore: matchTable.awayPenaltyScore,
+        winnerTeamId: matchTable.winnerTeamId,
       })
       .from(matchTable)
       .leftJoin(home, eq(matchTable.homeTeamId, home.id))
@@ -180,6 +188,9 @@ const getMatchDetail = createServerFn({ method: "GET" })
       settledAt: row.settledAt,
       resultSource: row.resultSource,
       predictable: row.homeTeamId != null && row.awayTeamId != null,
+      homePenaltyScore: row.homePenaltyScore ?? null,
+      awayPenaltyScore: row.awayPenaltyScore ?? null,
+      winnerTeamId: row.winnerTeamId ?? null,
     };
 
     // --- Lazy on-demand settlement trigger (spec: result-triggering) ---
@@ -203,6 +214,9 @@ const getMatchDetail = createServerFn({ method: "GET" })
         settledAt: matchRecord.settledAt,
         homeScore: matchRecord.homeScore,
         awayScore: matchRecord.awayScore,
+        homePenaltyScore: matchRecord.homePenaltyScore,
+        awayPenaltyScore: matchRecord.awayPenaltyScore,
+        winnerTeamId: matchRecord.winnerTeamId,
       },
       doDispatcher
     );

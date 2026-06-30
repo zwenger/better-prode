@@ -23,6 +23,7 @@ import type { MatchResult } from "#/domain/ports/result-source";
 import inProgressFixture from "./__fixtures__/wc2026-matches.json";
 import finishedFixture from "./__fixtures__/wc2026-finished.json";
 import upcomingFixture from "./__fixtures__/wc2026-upcoming.json";
+import penaltyMatchFixture from "./__fixtures__/wc2026-penalty-match.json";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -370,6 +371,62 @@ describe("FifaAdapter — ResultSource.getResult", () => {
     await adapter.getResult("fifa-m-400021443");
 
     expect(capturedThis).not.toBe(adapter);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Penalty shootout — getResult enrichment
+// ---------------------------------------------------------------------------
+
+describe("FifaAdapter — getResult penalty shootout (ResultType===2)", () => {
+  it("returns homePenaltyScore, awayPenaltyScore, winnerTeamId for a penalty match", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ Results: [penaltyMatchFixture] }),
+    });
+    const adapter = new FifaAdapter({ fetch: mockFetch as unknown as typeof fetch });
+
+    const result: MatchResult | null = await adapter.getResult("fifa-m-400021500");
+
+    expect(result).not.toBeNull();
+    // Regulation draw is preserved
+    expect(result!.homeScore).toBe(1);
+    expect(result!.awayScore).toBe(1);
+    // Penalty fields populated
+    expect(result!.homePenaltyScore).toBe(4);
+    expect(result!.awayPenaltyScore).toBe(2);
+    expect(result!.winnerTeamId).toBe("fifa-t-43911");
+  });
+
+  it("returns null penalty fields for a non-penalty finished match (ResultType absent)", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ Results: [finishedFixture] }),
+    });
+    const adapter = new FifaAdapter({ fetch: mockFetch as unknown as typeof fetch });
+
+    const result: MatchResult | null = await adapter.getResult("fifa-m-400021443");
+
+    expect(result).not.toBeNull();
+    expect(result!.homePenaltyScore).toBeNull();
+    expect(result!.awayPenaltyScore).toBeNull();
+    expect(result!.winnerTeamId).toBeNull();
+  });
+
+  it("returns null penalty fields when ResultType is 0 (non-penalty finished match)", async () => {
+    const nonPenaltyFixture = { ...finishedFixture, ResultType: 0 };
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ Results: [nonPenaltyFixture] }),
+    });
+    const adapter = new FifaAdapter({ fetch: mockFetch as unknown as typeof fetch });
+
+    const result: MatchResult | null = await adapter.getResult("fifa-m-400021443");
+
+    expect(result).not.toBeNull();
+    expect(result!.homePenaltyScore).toBeNull();
+    expect(result!.awayPenaltyScore).toBeNull();
+    expect(result!.winnerTeamId).toBeNull();
   });
 });
 

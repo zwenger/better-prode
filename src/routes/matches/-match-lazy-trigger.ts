@@ -30,6 +30,11 @@ export interface DispatchableMatch {
   homeScore: number | null;
   /** null when the score is not yet available from the provider. */
   awayScore: number | null;
+  /** Penalty shootout scores — null for non-penalty matches. Lazy path may legitimately be null. */
+  homePenaltyScore?: number | null;
+  awayPenaltyScore?: number | null;
+  /** FIFA-prefixed team id of the penalty winner. Null for non-penalty matches. */
+  winnerTeamId?: string | null;
 }
 
 export interface SettlePayload {
@@ -38,6 +43,11 @@ export interface SettlePayload {
   awayScore: number;
   status: "finished";
   source: "auto";
+  /** Penalty shootout scores — forwarded from DB when present. */
+  homePenaltyScore?: number | null;
+  awayPenaltyScore?: number | null;
+  /** FIFA-prefixed team id of the penalty winner. */
+  winnerTeamId?: string | null;
 }
 
 /**
@@ -87,6 +97,9 @@ export async function dispatchIfUnsettled(
     awayScore: match.awayScore,
     status: "finished",
     source: "auto",
+    homePenaltyScore: match.homePenaltyScore ?? null,
+    awayPenaltyScore: match.awayPenaltyScore ?? null,
+    winnerTeamId: match.winnerTeamId ?? null,
   });
 
   return { dispatched: true };

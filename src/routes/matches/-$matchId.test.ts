@@ -51,6 +51,9 @@ describe("dispatchIfUnsettled — lazy trigger domain helper", () => {
       awayScore: 1,
       status: "finished",
       source: "auto",
+      homePenaltyScore: null,
+      awayPenaltyScore: null,
+      winnerTeamId: null,
     });
   });
 

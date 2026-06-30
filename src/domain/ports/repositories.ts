@@ -46,7 +46,14 @@ export interface MatchRepository {
     update: Partial<
       Pick<
         MatchRecord,
-        "homeScore" | "awayScore" | "resultSource" | "settledAt" | "status"
+        | "homeScore"
+        | "awayScore"
+        | "resultSource"
+        | "settledAt"
+        | "status"
+        | "homePenaltyScore"
+        | "awayPenaltyScore"
+        | "winnerTeamId"
       >
     >
   ) => Promise<void>;
