@@ -133,6 +133,63 @@ describe("DrizzleMatchRepository", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Penalty shootout columns — migration 0006 + repository threading
+// ---------------------------------------------------------------------------
+
+describe("DrizzleMatchRepository — penalty shootout fields", () => {
+  beforeEach(async () => {
+    db = await createTestDb();
+    repo = new DrizzleMatchRepository(db);
+    await seedFixtures(db.$client);
+  });
+
+  it("updateResult persists homePenaltyScore, awayPenaltyScore, winnerTeamId", async () => {
+    const now = new Date().toISOString();
+    await repo.updateResult(MATCH_ID, {
+      homeScore: 1,
+      awayScore: 1,
+      resultSource: "auto",
+      settledAt: now,
+      status: "finished",
+      homePenaltyScore: 4,
+      awayPenaltyScore: 2,
+      winnerTeamId: HOME_TEAM,
+    });
+
+    const match = await repo.getById(MATCH_ID);
+    expect(match!.homePenaltyScore).toBe(4);
+    expect(match!.awayPenaltyScore).toBe(2);
+    expect(match!.winnerTeamId).toBe(HOME_TEAM);
+  });
+
+  it("getById returns null penalty fields when not set", async () => {
+    const match = await repo.getById(MATCH_ID);
+    expect(match!.homePenaltyScore).toBeNull();
+    expect(match!.awayPenaltyScore).toBeNull();
+    expect(match!.winnerTeamId).toBeNull();
+  });
+
+  it("updateResult without penalty fields leaves them null (backward compat)", async () => {
+    const now = new Date().toISOString();
+    await repo.updateResult(MATCH_ID, {
+      homeScore: 2,
+      awayScore: 0,
+      resultSource: "auto",
+      settledAt: now,
+      status: "finished",
+    });
+
+    const match = await repo.getById(MATCH_ID);
+    expect(match!.homePenaltyScore).toBeNull();
+    expect(match!.awayPenaltyScore).toBeNull();
+    expect(match!.winnerTeamId).toBeNull();
+    // Regulation scoring unaffected
+    expect(match!.homeScore).toBe(2);
+    expect(match!.awayScore).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // getTeamMatches
 // ---------------------------------------------------------------------------
 

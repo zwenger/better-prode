@@ -37,6 +37,9 @@ interface RawRow {
   homeScore: number | null;
   awayScore: number | null;
   groupLabel: string | null;
+  homePenaltyScore: number | null;
+  awayPenaltyScore: number | null;
+  winnerTeamId: string | null;
 }
 
 function makeRow(overrides: Partial<RawRow> = {}): RawRow {
@@ -55,6 +58,9 @@ function makeRow(overrides: Partial<RawRow> = {}): RawRow {
     homeScore: null,
     awayScore: null,
     groupLabel: "Group A",
+    homePenaltyScore: null,
+    awayPenaltyScore: null,
+    winnerTeamId: null,
     ...overrides,
   };
 }
@@ -248,6 +254,39 @@ describe("shapeMatchRows — predictable flag", () => {
     const rows = [makeRow({ awayName: null, awayTeamId: null, awayPlaceholder: "RU74" })];
     const result = shapeMatchRows(rows, new Map(), fixedNow);
     expect(result[0].awayName).toBe("Perdedor partido 74");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// shapeMatchRows — penalty shootout threading
+// ---------------------------------------------------------------------------
+
+describe("shapeMatchRows — penalty shootout fields", () => {
+  const fixedNow = new Date("2026-07-01T18:00:00.000Z");
+
+  it("passes through homePenaltyScore, awayPenaltyScore, winnerTeamId when set", () => {
+    const rows = [
+      makeRow({
+        status: "finished",
+        homeScore: 1,
+        awayScore: 1,
+        homePenaltyScore: 4,
+        awayPenaltyScore: 2,
+        winnerTeamId: "fifa-t-43911",
+      }),
+    ];
+    const result = shapeMatchRows(rows, new Map(), fixedNow);
+    expect(result[0].homePenaltyScore).toBe(4);
+    expect(result[0].awayPenaltyScore).toBe(2);
+    expect(result[0].winnerTeamId).toBe("fifa-t-43911");
+  });
+
+  it("passes through null penalty fields for non-penalty matches", () => {
+    const rows = [makeRow({ status: "finished", homeScore: 2, awayScore: 0 })];
+    const result = shapeMatchRows(rows, new Map(), fixedNow);
+    expect(result[0].homePenaltyScore).toBeNull();
+    expect(result[0].awayPenaltyScore).toBeNull();
+    expect(result[0].winnerTeamId).toBeNull();
   });
 });
 

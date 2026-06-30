@@ -263,6 +263,91 @@ describe("applyMatchResult", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Penalty shootout threading + SCORING ISOLATION
+//
+// CRITICAL: penalty fields must NEVER reach score().
+// score() must be called with only {homeGoals: homeScore, awayGoals: awayScore}.
+// ---------------------------------------------------------------------------
+
+describe("applyMatchResult — penalty shootout threading", () => {
+  let clock: FakeClock;
+
+  beforeEach(() => {
+    clock = new FakeClock(NOW);
+  });
+
+  it("persists penalty fields when present on a finished match", async () => {
+    const match = makeMatch({ status: "finished" });
+    const ports = makePorts(match, []);
+
+    await applyMatchResult(
+      {
+        matchId: "match-1",
+        homeScore: 1,
+        awayScore: 1,
+        status: "finished",
+        source: "auto",
+        homePenaltyScore: 4,
+        awayPenaltyScore: 2,
+        winnerTeamId: "fifa-t-43911",
+      },
+      ports,
+      clock
+    );
+
+    expect(ports.savedMatch?.homePenaltyScore).toBe(4);
+    expect(ports.savedMatch?.awayPenaltyScore).toBe(2);
+    expect(ports.savedMatch?.winnerTeamId).toBe("fifa-t-43911");
+    // Regulation score unchanged
+    expect(ports.savedMatch?.homeScore).toBe(1);
+    expect(ports.savedMatch?.awayScore).toBe(1);
+  });
+
+  it("scoring isolation — score() uses only regulation goals (not penalty scores)", async () => {
+    // Penalty match: 1-1 at regulation, home wins 4-2 on penalties.
+    // The prediction is 1-1 → pleno (7 pts) based on REGULATION only.
+    // If penalty scores leaked into score(), the result would be 4-2 → no pleno.
+    const match = makeMatch({ status: "finished" });
+    const predictions = [makePrediction({ homeGoals: 1, awayGoals: 1 })]; // 1-1 prediction
+    const ports = makePorts(match, predictions);
+
+    await applyMatchResult(
+      {
+        matchId: "match-1",
+        homeScore: 1,    // regulation: 1-1 (draw)
+        awayScore: 1,
+        status: "finished",
+        source: "auto",
+        homePenaltyScore: 4,  // penalty: 4-2 home wins
+        awayPenaltyScore: 2,
+        winnerTeamId: "fifa-t-43911",
+      },
+      ports,
+      clock
+    );
+
+    // The prediction was 1-1, the regulation result is 1-1 → pleno → 7 pts
+    // If penalty (4-2) had been passed to score(), points would be 0 (wrong exact goals, correct outcome)
+    expect(predictions[0].points).toBe(7); // PLENO — proves penalty fields did NOT reach score()
+  });
+
+  it("penalty fields are null when not provided (non-penalty match, backward compat)", async () => {
+    const match = makeMatch({ status: "finished" });
+    const ports = makePorts(match, []);
+
+    await applyMatchResult(
+      { matchId: "match-1", homeScore: 2, awayScore: 0, status: "finished", source: "auto" },
+      ports,
+      clock
+    );
+
+    expect(ports.savedMatch?.homePenaltyScore).toBeNull();
+    expect(ports.savedMatch?.awayPenaltyScore).toBeNull();
+    expect(ports.savedMatch?.winnerTeamId).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Cache invalidation tests (W-1 fix)
 //
 // Spec (leaderboard): "The cache MUST be invalidated whenever applyMatchResult

@@ -39,7 +39,14 @@ export class DrizzleMatchRepository implements MatchRepository {
     update: Partial<
       Pick<
         MatchRecord,
-        "homeScore" | "awayScore" | "resultSource" | "settledAt" | "status"
+        | "homeScore"
+        | "awayScore"
+        | "resultSource"
+        | "settledAt"
+        | "status"
+        | "homePenaltyScore"
+        | "awayPenaltyScore"
+        | "winnerTeamId"
       >
     >
   ): Promise<void> {
@@ -50,6 +57,9 @@ export class DrizzleMatchRepository implements MatchRepository {
     if (update.resultSource !== undefined) values.resultSource = update.resultSource;
     if (update.settledAt !== undefined) values.settledAt = update.settledAt;
     if (update.status !== undefined) values.status = update.status;
+    if (update.homePenaltyScore !== undefined) values.homePenaltyScore = update.homePenaltyScore;
+    if (update.awayPenaltyScore !== undefined) values.awayPenaltyScore = update.awayPenaltyScore;
+    if (update.winnerTeamId !== undefined) values.winnerTeamId = update.winnerTeamId;
 
     if (Object.keys(values).length === 0) return;
 
@@ -106,6 +116,9 @@ export class DrizzleMatchRepository implements MatchRepository {
       awayScore: row.awayScore ?? null,
       resultSource: row.resultSource ?? null,
       settledAt: row.settledAt ?? null,
+      homePenaltyScore: row.homePenaltyScore ?? null,
+      awayPenaltyScore: row.awayPenaltyScore ?? null,
+      winnerTeamId: row.winnerTeamId ?? null,
     };
   }
 }

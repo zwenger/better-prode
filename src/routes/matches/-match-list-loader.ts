@@ -91,6 +91,11 @@ export interface MatchListItem {
   predictable: boolean;
   /** Hydrated from DB on load — null when the user has no prediction yet. */
   userPrediction: UserPrediction | null;
+  /** Penalty shootout scores — null for non-penalty matches. Display only; never fed to score(). */
+  homePenaltyScore: number | null;
+  awayPenaltyScore: number | null;
+  /** FIFA-prefixed team id of the penalty winner. Null for non-penalty matches. */
+  winnerTeamId: string | null;
 }
 
 /**
@@ -124,6 +129,9 @@ interface RawMatchRow {
   homeScore: number | null;
   awayScore: number | null;
   groupLabel: string | null;
+  homePenaltyScore: number | null;
+  awayPenaltyScore: number | null;
+  winnerTeamId: string | null;
 }
 
 /**
@@ -157,5 +165,8 @@ export function shapeMatchRows(
     locked: isLocked(row.kickoffUtc, clock),
     predictable: row.homeTeamId != null && row.awayTeamId != null,
     userPrediction: predMap.get(row.id) ?? null,
+    homePenaltyScore: row.homePenaltyScore,
+    awayPenaltyScore: row.awayPenaltyScore,
+    winnerTeamId: row.winnerTeamId,
   }));
 }

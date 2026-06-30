@@ -103,6 +103,9 @@ export async function ingestMatchResults(
       awayScore: result.awayScore,
       status: result.status,
       source: result.source,
+      homePenaltyScore: result.homePenaltyScore ?? null,
+      awayPenaltyScore: result.awayPenaltyScore ?? null,
+      winnerTeamId: result.winnerTeamId ?? null,
     };
 
     try {

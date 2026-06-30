@@ -50,6 +50,10 @@ export const match = sqliteTable(
     stageId: text("stage_id"),
     homePlaceholder: text("home_placeholder"),
     awayPlaceholder: text("away_placeholder"),
+    homePenaltyScore: integer("home_penalty_score"),
+    awayPenaltyScore: integer("away_penalty_score"),
+    /** FIFA Winner team id (with fifa-t- prefix). Null for non-penalty matches. */
+    winnerTeamId: text("winner_team_id"),
     createdAt: text("created_at").notNull(),
   },
   (t) => [
