@@ -145,14 +145,39 @@ export async function applyMatchResult(
     throw new Error(`Match not found: ${command.matchId}`);
   }
 
-  // Idempotency guard: already settled with the same score and same source
+  // Idempotency guard: already settled with the same score and same source.
   if (
     match.settledAt !== null &&
     match.homeScore === command.homeScore &&
     match.awayScore === command.awayScore &&
     match.resultSource === command.source
   ) {
-    return; // no-op
+    // Penalty backfill: FIFA often populates Winner/ResultType=2/penalty scores
+    // with a DELAY after the final whistle. The match can settle first as the
+    // regulation draw (penalty fields null) and only carry the shootout data on
+    // a LATER poll. Without this branch the guard above would NO-OP and the
+    // penalty fields would NEVER be written.
+    //
+    // Detect fresh penalty data the stored record lacks/differs from, and do a
+    // TARGETED display-only update — penalty fields ONLY. We deliberately do NOT
+    // re-run score() or invalidate the leaderboard cache: the regulation result
+    // is unchanged, so points are unchanged; this is display data only.
+    const incomingHomePk = command.homePenaltyScore ?? null;
+    const incomingAwayPk = command.awayPenaltyScore ?? null;
+    const incomingWinner = command.winnerTeamId ?? null;
+    const penaltyDataDiffers =
+      incomingHomePk !== match.homePenaltyScore ||
+      incomingAwayPk !== match.awayPenaltyScore ||
+      incomingWinner !== match.winnerTeamId;
+
+    if (penaltyDataDiffers) {
+      await matchRepository.updateResult(command.matchId, {
+        homePenaltyScore: incomingHomePk,
+        awayPenaltyScore: incomingAwayPk,
+        winnerTeamId: incomingWinner,
+      });
+    }
+    return; // no points recompute, no cache invalidation — display-only
   }
 
   // Manual-pin guard: auto cannot overwrite an existing manual result
