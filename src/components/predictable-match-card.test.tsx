@@ -47,6 +47,10 @@ function makeMatch(overrides: Partial<MatchListItem> = {}): MatchListItem {
     locked: false,
     predictable: false,
     userPrediction: null,
+    homePenaltyScore: null,
+    awayPenaltyScore: null,
+    winnerTeamId: null,
+    penaltyWinnerName: null,
     ...overrides,
   };
 }

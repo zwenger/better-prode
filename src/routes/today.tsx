@@ -365,28 +365,39 @@ function LiveMatchCard({
 /** Finished match with no prediction */
 function ResultOnlyRow({ match }: { match: MatchListItem }) {
   return (
-    <div className="rounded-xl px-3 py-3 bg-surface-subtle flex items-center gap-3 mb-2">
-      <div className="flex items-center gap-1 shrink-0">
-        <TeamFlag code={match.homeCode} />
-        <span className="text-xs font-medium text-muted-foreground">
-          {match.homeName}
+    <div className="rounded-xl px-3 py-3 bg-surface-subtle mb-2 flex flex-col gap-1">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 shrink-0">
+          <TeamFlag code={match.homeCode} />
+          <span className="text-xs font-medium text-muted-foreground">
+            {match.homeName}
+          </span>
+        </div>
+        <span className="text-xs text-muted-foreground italic flex-1">
+          Sin predicción
         </span>
+        <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+          Res{" "}
+          <span className="font-semibold text-foreground">
+            {match.homeScore}–{match.awayScore}
+          </span>
+        </span>
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="text-xs font-medium text-muted-foreground">
+            {match.awayName}
+          </span>
+          <TeamFlag code={match.awayCode} />
+        </div>
       </div>
-      <span className="text-xs text-muted-foreground italic flex-1">
-        Sin predicción
-      </span>
-      <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-        Res{" "}
-        <span className="font-semibold text-foreground">
-          {match.homeScore}–{match.awayScore}
-        </span>
-      </span>
-      <div className="flex items-center gap-1 shrink-0">
-        <span className="text-xs font-medium text-muted-foreground">
-          {match.awayName}
-        </span>
-        <TeamFlag code={match.awayCode} />
-      </div>
+      {match.penaltyWinnerName !== null && match.homePenaltyScore !== null && match.awayPenaltyScore !== null && (
+        <p className="text-[11px] text-muted-foreground" data-testid="penalty-annotation">
+          · {match.penaltyWinnerName} avanza{" "}
+          <span className="font-semibold tabular-nums text-foreground">
+            {match.homePenaltyScore}-{match.awayPenaltyScore}
+          </span>{" "}
+          en penales
+        </p>
+      )}
     </div>
   );
 }
@@ -561,6 +572,19 @@ function ScoreBreakdown({ match }: { match: MatchListItem }) {
           {badgeLabel}
         </span>
       </div>
+
+      {/* Penalty annotation — only for penalty-decided matches */}
+      {match.penaltyWinnerName !== null && match.homePenaltyScore !== null && match.awayPenaltyScore !== null && (
+        <div data-testid="penalty-annotation">
+          <span className="text-[11px]" style={{ color: "var(--ink-muted)" }}>
+            · {match.penaltyWinnerName} avanza{" "}
+            <span className="font-semibold tabular-nums" style={{ color: "var(--ink)" }}>
+              {match.homePenaltyScore}-{match.awayPenaltyScore}
+            </span>{" "}
+            en penales
+          </span>
+        </div>
+      )}
 
       {/* Group label — tertiary */}
       {match.groupLabel && (

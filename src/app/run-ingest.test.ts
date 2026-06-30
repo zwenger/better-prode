@@ -34,6 +34,9 @@ function makeActiveMatch(): MatchRecord {
     awayScore: null,
     resultSource: null,
     settledAt: null,
+    homePenaltyScore: null,
+    awayPenaltyScore: null,
+    winnerTeamId: null,
   };
 }
 

@@ -32,7 +32,7 @@ import type { DispatchableMatch, DoDispatcher } from "./-match-lazy-trigger";
 import { dispatchIfUnsettled } from "./-match-lazy-trigger";
 import type { SettleCommand } from "#/workers/match-do";
 import { TeamFlag } from "#/components/team-flag";
-import { formatKickoffUtc } from "#/routes/matches/-match-list-loader";
+import { formatKickoffUtc, resolvePenaltyWinnerName } from "#/routes/matches/-match-list-loader";
 import { DrizzleGroupRepository } from "#/adapters/db/group-repository";
 import { DrizzleMatchRepository } from "#/adapters/db/match-repository";
 import type { TeamMatchRow } from "#/adapters/db/match-repository";
@@ -67,6 +67,8 @@ interface MatchDetail {
   awayPenaltyScore: number | null;
   /** FIFA-prefixed team id of the penalty winner. Null for non-penalty matches. */
   winnerTeamId: string | null;
+  /** Resolved display name of the penalty winner. Null for non-penalty matches. */
+  penaltyWinnerName: string | null;
 }
 
 interface GroupPredEntry {
@@ -191,6 +193,13 @@ const getMatchDetail = createServerFn({ method: "GET" })
       homePenaltyScore: row.homePenaltyScore ?? null,
       awayPenaltyScore: row.awayPenaltyScore ?? null,
       winnerTeamId: row.winnerTeamId ?? null,
+      penaltyWinnerName: resolvePenaltyWinnerName(
+        row.winnerTeamId ?? null,
+        row.homeTeamId ?? null,
+        row.awayTeamId ?? null,
+        row.homeName ?? decodePlaceholder(row.homePlaceholder),
+        row.awayName ?? decodePlaceholder(row.awayPlaceholder)
+      ),
     };
 
     // --- Lazy on-demand settlement trigger (spec: result-triggering) ---
@@ -402,6 +411,20 @@ function MatchDetailPage() {
             <span className="font-medium text-center text-sm">{match.awayName}</span>
           </div>
         </div>
+
+        {/* Penalty shootout annotation — only for penalty-decided matches */}
+        {match.penaltyWinnerName !== null && match.homePenaltyScore !== null && match.awayPenaltyScore !== null && (
+          <p
+            className="text-center text-xs text-muted-foreground"
+            data-testid="penalty-annotation"
+          >
+            · {match.penaltyWinnerName} avanza{" "}
+            <span className="font-semibold tabular-nums text-foreground">
+              {match.homePenaltyScore}-{match.awayPenaltyScore}
+            </span>{" "}
+            en penales
+          </p>
+        )}
 
         {/* Prediction: editable when open, TBD banner, or read-only result */}
         <MatchDetailPredictionArea

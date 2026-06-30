@@ -273,6 +273,8 @@ describe("shapeMatchRows — penalty shootout fields", () => {
         homePenaltyScore: 4,
         awayPenaltyScore: 2,
         winnerTeamId: "fifa-t-43911",
+        homeTeamId: "fifa-t-43911",
+        awayTeamId: "fifa-t-43883",
       }),
     ];
     const result = shapeMatchRows(rows, new Map(), fixedNow);
@@ -287,6 +289,50 @@ describe("shapeMatchRows — penalty shootout fields", () => {
     expect(result[0].homePenaltyScore).toBeNull();
     expect(result[0].awayPenaltyScore).toBeNull();
     expect(result[0].winnerTeamId).toBeNull();
+  });
+
+  it("resolves penaltyWinnerName to homeName when winnerTeamId matches homeTeamId", () => {
+    const rows = [
+      makeRow({
+        status: "finished",
+        homeScore: 1,
+        awayScore: 1,
+        homeName: "Mexico",
+        awayName: "South Africa",
+        homeTeamId: "fifa-t-43911",
+        awayTeamId: "fifa-t-43883",
+        homePenaltyScore: 4,
+        awayPenaltyScore: 2,
+        winnerTeamId: "fifa-t-43911",
+      }),
+    ];
+    const result = shapeMatchRows(rows, new Map(), fixedNow);
+    expect(result[0].penaltyWinnerName).toBe("Mexico");
+  });
+
+  it("resolves penaltyWinnerName to awayName when winnerTeamId matches awayTeamId", () => {
+    const rows = [
+      makeRow({
+        status: "finished",
+        homeScore: 1,
+        awayScore: 1,
+        homeName: "Mexico",
+        awayName: "South Africa",
+        homeTeamId: "fifa-t-43911",
+        awayTeamId: "fifa-t-43883",
+        homePenaltyScore: 2,
+        awayPenaltyScore: 4,
+        winnerTeamId: "fifa-t-43883",
+      }),
+    ];
+    const result = shapeMatchRows(rows, new Map(), fixedNow);
+    expect(result[0].penaltyWinnerName).toBe("South Africa");
+  });
+
+  it("sets penaltyWinnerName to null for non-penalty matches", () => {
+    const rows = [makeRow({ status: "finished", homeScore: 2, awayScore: 0 })];
+    const result = shapeMatchRows(rows, new Map(), fixedNow);
+    expect(result[0].penaltyWinnerName).toBeNull();
   });
 });
 
