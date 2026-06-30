@@ -181,6 +181,9 @@ export async function runIngest(
       awayScore: row.awayScore ?? null,
       resultSource: row.resultSource ?? null,
       settledAt: row.settledAt ?? null,
+      homePenaltyScore: row.homePenaltyScore ?? null,
+      awayPenaltyScore: row.awayPenaltyScore ?? null,
+      winnerTeamId: row.winnerTeamId ?? null,
     }));
   };
 

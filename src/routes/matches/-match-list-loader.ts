@@ -96,6 +96,11 @@ export interface MatchListItem {
   awayPenaltyScore: number | null;
   /** FIFA-prefixed team id of the penalty winner. Null for non-penalty matches. */
   winnerTeamId: string | null;
+  /**
+   * Resolved display name of the penalty winner (homeName or awayName).
+   * Null for non-penalty matches or when winnerTeamId does not match either team.
+   */
+  penaltyWinnerName: string | null;
 }
 
 /**
@@ -135,6 +140,27 @@ interface RawMatchRow {
 }
 
 /**
+ * Resolve the display name of the penalty winner from the stored team id.
+ *
+ * Returns the home or away display name when winnerTeamId matches, or null
+ * when there is no penalty result (non-penalty match or null winnerTeamId).
+ *
+ * Pure function — no side effects, easy to unit test.
+ */
+export function resolvePenaltyWinnerName(
+  winnerTeamId: string | null,
+  homeTeamId: string | null,
+  awayTeamId: string | null,
+  homeName: string,
+  awayName: string
+): string | null {
+  if (!winnerTeamId) return null;
+  if (winnerTeamId === homeTeamId) return homeName;
+  if (winnerTeamId === awayTeamId) return awayName;
+  return null;
+}
+
+/**
  * Shape DB rows into MatchListItem[], injecting lock state and user prediction.
  *
  * @param rows        - Raw DB rows from the match + team join
@@ -168,5 +194,12 @@ export function shapeMatchRows(
     homePenaltyScore: row.homePenaltyScore,
     awayPenaltyScore: row.awayPenaltyScore,
     winnerTeamId: row.winnerTeamId,
+    penaltyWinnerName: resolvePenaltyWinnerName(
+      row.winnerTeamId,
+      row.homeTeamId,
+      row.awayTeamId,
+      row.homeName ?? decodePlaceholder(row.homePlaceholder),
+      row.awayName ?? decodePlaceholder(row.awayPlaceholder)
+    ),
   }));
 }
