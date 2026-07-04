@@ -14,7 +14,7 @@
  *  - tournament table has exactly 1 row after two runs (task 2.3)
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { Client } from "@libsql/client";
 import { createTestDb } from "#/adapters/db/test-helpers";
 import type { DrizzleDb } from "#/infra/db/client";
@@ -171,6 +171,28 @@ describe("importTournament — idempotency", () => {
   it("emits a warning in return value for unmapped team (null code)", async () => {
     const result = await importTournament(BASE_STRUCTURE, db);
     expect(result.warnings.some((w) => w.includes("fifa-t-12345"))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Subrequest budget: all writes must ship as ONE libSQL batch
+//
+// Regression guard for the silent 6h-cron failure: issued as per-row awaits,
+// a full structure (~153 statements) exceeds the Cloudflare Free-plan 50
+// subrequest cap and the scheduled invocation dies mid-loop. A single batch is
+// one subrequest, so the whole import always completes on the edge.
+// ---------------------------------------------------------------------------
+
+describe("importTournament — single-batch write (Workers subrequest cap)", () => {
+  it("issues every upsert in exactly one db.batch call", async () => {
+    const batchSpy = vi.spyOn(db, "batch");
+
+    await importTournament(BASE_STRUCTURE, db);
+
+    expect(batchSpy).toHaveBeenCalledTimes(1);
+    // 1 tournament + 3 teams + 2 matches = 6 statements in the single batch.
+    const [statements] = batchSpy.mock.calls[0] ?? [];
+    expect(statements).toHaveLength(6);
   });
 });
 
