@@ -122,6 +122,40 @@ const entry = createServerEntry({
       return Response.json({}, { status: 202 });
     }
 
+    // Admin manual structure refresh — symmetric to the manual ingest backstop.
+    // Re-imports the tournament structure ON DEMAND so knockout matches repoint
+    // to concrete teams without waiting for the 6h cron tick. Runs INLINE (not
+    // waitUntil) so the caller sees the ImportResult — used to verify the cron
+    // path works in the real Workers runtime.
+    //
+    // Gated by a shared secret header (ADMIN_REFRESH_SECRET) rather than a
+    // session cookie so it is trivially curl-able for ops. A missing/blank
+    // secret env disables the endpoint (fails closed).
+    if (
+      url.pathname === "/api/admin/refresh-structure" &&
+      request.method === "POST"
+    ) {
+      const secret = process.env["ADMIN_REFRESH_SECRET"];
+      const provided = request.headers.get("x-admin-secret");
+      if (!secret || provided !== secret) {
+        return Response.json({ error: "unauthorized" }, { status: 401 });
+      }
+
+      const tid = process.env["TOURNAMENT_ID"] ?? "17-285023";
+      try {
+        const result = await runStructureRefresh(tid);
+        return Response.json({ success: true, ...result });
+      } catch (err) {
+        return Response.json(
+          {
+            success: false,
+            error: err instanceof Error ? err.message : String(err),
+          },
+          { status: 500 }
+        );
+      }
+    }
+
     return handler.fetch(request);
   },
 });
