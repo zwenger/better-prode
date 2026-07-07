@@ -60,3 +60,9 @@ __unconfig*
 
 # Skill registry cache (delegator index)
 .atl/
+
+# Claude Code local config and skill mirror (repo-shared copy lives in .github/skills)
+.claude/
+
+# CodeGraph local index (machine-specific; see .codegraph/.gitignore)
+.codegraph/
